@@ -116,18 +116,19 @@ static void _print_name(int level, char *name, unsigned int level_mask)
     Per farla breve: manitene le modifiche all'andata della ricorsione, non le mantiene al ritorno.
     */
     for (int i = 0; i < level; i++)
-    {
-        if (level_mask >> i & 1)
-            printf("     ");
-        else
-            printf("\u2502    ");
-        // printf("%c    ", level_mask >> i & 1 ? ' ' : '\u2502');
-    }
+        printf("%s    ", level_mask >> i & 1 ? " " : "\u2502");
 
     if (level_mask >> level & 1)
         printf("\u2514\u2500\u2500\u2500 %s\n", name);
     else
-        printf("\u251C\u2500\u2500\u2500 %s\n", name);
+    {
+        // Usa i colori di LS_COLORS se e' settata la variabile
+        // char *ls_colors = getenv("LS_COLORS");
+        // if (ls_colors != NULL)
+        //     printf("\u251C\u2500\u2500\u2500 \033[%sm%s\033[0m\n", ls_colors, name);
+        // else
+            printf("\u251C\u2500\u2500\u2500 %s\n", name);
+    }
 
     // Se non scrivo sul terminale di vs code "chcp 65001" non visualizza questi chars
     // printf("\u251C\u2500\u2500\u2500");  Stampa "├──"
