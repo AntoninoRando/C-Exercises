@@ -3,13 +3,13 @@
 #include <sys/stat.h>
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
 
 /***********
  * Prototipo delle Funzioni
  ***********/
 // NON HO CAPITO A COSA SERVE DICHIARARE IL PROTOTIPO
-static int _isdir(const char *);
-static void _print_name(int, char *, unsigned int);
+static void _print_name(int, char *, unsigned int, unsigned short, struct stat);
 static int _treeR(int, const char *, int *, int *, unsigned short, unsigned int); // passo char come puntatore perche' e' un array di carratteri, cioe' una stringa
 static void _pars_argv(int, char **, unsigned short *, char *);
 int tree(int, char **);
@@ -32,6 +32,7 @@ static const int BIGL_OP = 12;
  * Funzioni di Utility
  ***********/
 // LE FUNZIONI STATIC NON DOVREBBERO ESSERE VISIBILI ANCHE ALL'ESTERNO.
+// Uso const davanti al parametro perche' e' un riferimento ma la funzione non deve modificare il valore.
 static int _treeR(int level, const char *path, int *dir_count, int *file_count, unsigned short flags, unsigned int level_mask)
 {
 
@@ -74,18 +75,26 @@ static int _treeR(int level, const char *path, int *dir_count, int *file_count, 
             level_mask |= (1 << level);
         seekdir(dir, current_index); // Torna indietro
 
-        if (_isdir(full_path) == 1)
+        // Il file stat contenente informazioni essenziali.
+        struct stat f_stat;
+        if (stat(full_path, &f_stat) != 0) {
+            perror("An error has occurred while trying to read file's informations.");
+            return 1;
+        }
+
+        // Se il file e' una DIRECTORY
+        if (S_ISDIR(f_stat.st_mode) == 1)
         {
             (*dir_count)++;
             // Stampa il full path se "-f"
-            _print_name(level, flags >> F_OP & 1 ? full_path : ent->d_name, level_mask);
+            _print_name(level, flags >> F_OP & 1 ? full_path : ent->d_name, level_mask, flags, f_stat);
             _treeR(level + 1, full_path, dir_count, file_count, flags, level_mask);
         }
         // Se non e' dir, stampa solo se non e' settato il bit di stampare solo dir.
-        else if (!(flags >> D_OP & 1))
+        else if (!(flags >> 2 & 1))
         {
             (*file_count)++;
-            _print_name(level, flags >> F_OP & 1 ? full_path : ent->d_name, level_mask);
+            _print_name(level, flags >> F_OP & 1 ? full_path : ent->d_name, level_mask, flags, f_stat);
             // !!!!NON SO SE -ad stampa solo directory, incluse quelle nascoste! IO HO FATTO COSI!!!!!!
         }
 
@@ -97,15 +106,7 @@ static int _treeR(int level, const char *path, int *dir_count, int *file_count, 
     return 0;
 }
 
-// Uso const davanti al parametro perche' e' un riferimento ma la funzione non deve modificare il valore.
-static int _isdir(const char *path)
-{
-    struct stat pth;
-    stat(path, &pth);
-    return S_ISDIR(pth.st_mode);
-}
-
-static void _print_name(int level, char *name, unsigned int level_mask)
+static void _print_name(int level, char *name, unsigned int level_mask, unsigned short arg_mask, struct stat f_stat)
 {
     /* La level_mask indica quali livelli hanno raggiunto la fine della dir.
     La level_mask non e' globale, ma e' associata ad un singolo file; cosi'
@@ -115,20 +116,33 @@ static void _print_name(int level, char *name, unsigned int level_mask)
     che riraggiunge la fine sotto.
     Per farla breve: manitene le modifiche all'andata della ricorsione, non le mantiene al ritorno.
     */
-    for (int i = 0; i < level; i++)
-        printf("%s    ", level_mask >> i & 1 ? " " : "\u2502");
 
-    if (level_mask >> level & 1)
-        printf("\u2514\u2500\u2500\u2500 %s\n", name);
-    else
-    {
-        // Usa i colori di LS_COLORS se e' settata la variabile
-        // char *ls_colors = getenv("LS_COLORS");
-        // if (ls_colors != NULL)
-        //     printf("\u251C\u2500\u2500\u2500 \033[%sm%s\033[0m\n", ls_colors, name);
-        // else
-            printf("\u251C\u2500\u2500\u2500 %s\n", name);
-    }
+    // Non uso gli unicodes per rendere piu' comprensibile il codice
+    // visto che con gli operatori ternari potrebbe risultare confuso.
+
+    // Stampa gli spazi prima del nome.
+    for (int i = 0; i < level; i++)
+        printf("%s    ", level_mask >> i & 1 ? " " : "│");
+
+    // brakets = e' stato passato almeno un argomento che richiede le brackets?
+    int brakets = (arg_mask >> 4 & 1 );
+
+    char date[20];
+    strftime(date, sizeof(date), "%d-%m-%y", localtime(&(f_stat.st_mtime)));
+    
+    printf("%s── %s%s%s%s\n", 
+        level_mask >> level & 1 ? "└" : "├",
+        brakets == 1 ? "[" : "",
+        arg_mask >> 4 & 1 ? date : "",
+        brakets == 1 ? "] " : "",
+        name);
+
+    // Usa i colori di LS_COLORS se e' settata la variabile
+    // char *ls_colors = getenv("LS_COLORS");
+    // if (ls_colors != NULL)
+    //     printf("\u251C\u2500\u2500\u2500 \033[%sm%s\033[0m\n", ls_colors, name);
+    // else
+  
 
     // Se non scrivo sul terminale di vs code "chcp 65001" non visualizza questi chars
     // printf("\u251C\u2500\u2500\u2500");  Stampa "├──"
@@ -138,31 +152,25 @@ static void _print_name(int level, char *name, unsigned int level_mask)
 
 static void _pars_argv(int argc, char **argv, unsigned short *flags, char *path)
 {
+    char map[5][7] = {"--help", "-a", "-d", "-f", "-D"};
     // Parsing arguments
     for (int i = 1; i < argc; i++)
     {
-        unsigned short mask = 0b0;
-
-        if (strcmp(argv[i], "--help") == 0)
+        int j;
+        for (j = 0; j < 5; j++)
         {
-            mask = 1 << HELP_OP;
-            return;
+            if (strcmp(argv[i], map[j]) != 0)
+                continue;
+            *(flags) |= 1 << j;
+            break;
         }
-        else if (strcmp(argv[i], "-a") == 0)
-            mask = 1 << A_OP; // Imposta un 1 all'a-esimo bit.
-        else if (strcmp(argv[i], "-d") == 0)
-            mask = 1 << D_OP;
-        else if (strcmp(argv[i], "-f") == 0)
-            mask = 1 << F_OP;
-        // else if (strlen(argv[i]) > 2)
-        // {
-        //     // Questo serve per la scrittura di argomenti come -"ad"; anche "--help" e' di strlen >,
-        //     // ma quell'argomento gia' l'ho controllato quindi l'else-if non va a segno.
-        // }
-        else // Se non e' nulla e' un path... se non era nemmeno un path, dara' errore quando tentera' di aprirla.
+        /* Se il ciclo finisce senza un break, l'argv[i] non era un "singolo" aromgneto,
+        quindi:
+            - o e' un path (se non era nemmeno un path dara' errore all'apertura, quindi
+            non ci interessa controllarlo);
+            - o e' una stringa contenente piu' argomenti (e.g. -adf). */
+        if (j == 5)
             strcpy(path, argv[i]);
-
-        *(flags) |= mask; // Metti in OR i due operatori, cosi' che se in flags l'n-esimo bit era 0 ora diventa 1.
     }
 }
 

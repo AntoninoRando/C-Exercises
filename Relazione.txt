@@ -1,0 +1,9 @@
+I parametri sono convertiti in una bit-mask secondo la seguente logica:
+- ad ogni parametro ho associato un numero (e.g. ad "--help" corrisponde 0, ad "-a" corrisponde 1);
+- se l'utente ha passato il parametro associato al numero i, allora l'i-esimo bit della mask è 1, altrimenti è 0.
+
+A proposito di paramtri, una questione importante è: come si comporta la funzione se una directory ha lo stesso nome di uno o più parametri?
+Esaminando il comportamento della funzione tree ufficiale, ho concluso che in questo caso ambiguo si prioritizza...
+
+
+La bit-mask viene usata anche per capire se si è giunti alla fine di una directory; in tal caso, il carattere del "link" dell'albero cambia (i.e. non prosegue più all'elemento dopo). Se la directory che stiamo scorrendo è giunta alla fine, e tale directoy si trova all'i-esimo livello, allora l'i-esimo bit della mask è settato.
