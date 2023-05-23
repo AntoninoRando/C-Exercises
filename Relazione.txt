@@ -7,3 +7,16 @@ Esaminando il comportamento della funzione tree ufficiale, ho concluso che in qu
 
 
 La bit-mask viene usata anche per capire se si è giunti alla fine di una directory; in tal caso, il carattere del "link" dell'albero cambia (i.e. non prosegue più all'elemento dopo). Se la directory che stiamo scorrendo è giunta alla fine, e tale directoy si trova all'i-esimo livello, allora l'i-esimo bit della mask è settato.
+
+La _treeR compie le seguenti azioni in ordine.
+1. Citando la documentazione "In no event does tree print the file system constructs '.' (current directory) and '..' (previous directory)". Quindi tali file vengono subito evitati.
+2. Se il file è nascosto e l'"-a" bit (3) non è settato, evita questo file.
+...
+x. Se il file è una directory, stampa il nome e chiama ricorsivamente la funzione.
+x. Se invece era un file normale E non è settato il "-d" bit (4):
+    - se è settato il "--dirsfirst" (2), chiama prima ricorsivamente la funzione (per vedere se c'è altro dopo) 
+
+
+Per fare le cartele prima:
+- quando incontra una dir la stampa;
+- quando incontra un file, richiama la funzione in modo che parta dal file dopo. Al ritorno, stamperà il file.

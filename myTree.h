@@ -5,8 +5,6 @@
 #include <stdlib.h>
 #include <time.h>
 
-// TODO: AGGIUNGERE UNA STRUCT PER LA ARGS_MASK CHE BASTI FARE struct.a PER CAPIRE SE E' SETTATO, COSI' NON MI
-// CONFONDO CON I NUMERI.
 /***********
  * Prototipo delle Funzioni
  ***********/
@@ -14,7 +12,15 @@
 static void _print_name(int, char *, unsigned int, unsigned short, struct stat);
 static int _treeR(int, const char *, int *, int *, unsigned short, unsigned int); // passo char come puntatore perche' e' un array di carratteri, cioe' una stringa
 int _pars_argv(int, char **, unsigned short *, char *);
+static char *_get_full_path(const char *, const char *);
 int tree(int, char **);
+
+typedef struct file_node // NON SO PERCHE' MA SE NON SCRIVO QUI FILE_NODE MI DA ERRORE
+{
+    char *name;
+    struct stat stat;
+    struct file_node *next;
+} file_node;
 
 /***********
  * Funzioni di Utility
@@ -23,73 +29,114 @@ int tree(int, char **);
 // Uso const davanti al parametro perche' e' un riferimento ma la funzione non deve modificare il valore.
 static int _treeR(int level, const char *path, int *dir_count, int *file_count, unsigned short flags, unsigned int level_mask)
 {
-
     DIR *dir;
 
-    dir = opendir(path); // Open the current directory
-    if (dir == NULL)
+    if ((dir = opendir(path)) == NULL)
     {
         perror(path);
-        return 1; // ATTENZIONE, VA CONTROLLATO PURE SULLA RICORSIONE
+        return 1; // ATTENZIONE, VA ritornato PURE SULLA RICORSIONE
     }
 
+    struct file_node *head = NULL, *last_node = NULL;
     struct dirent *ent;
+
     while ((ent = readdir(dir)) != NULL)
     {
-        // Citando la documentazione: "In no event does tree print the file system
-        // constructs '.' (current directory) and '..' (previous directory)".
         if (strcmp(".", ent->d_name) == 0 || strcmp("..", ent->d_name) == 0)
             continue;
 
-        // Skippa se il file e' nascosto e l' "-a" bit non e' settato.
         if (ent->d_name[0] == '.' && !(flags >> 3 & 1))
             continue;
 
-        // Concatena il name al path precedente
-        char *full_path;
-        full_path = (char *)malloc(strlen(path) + strlen(ent->d_name) + 2);
-        // quell'2 e' per la stringa '/' ed il null terminator '/0
-        strcpy(full_path, path);
-        strcat(full_path, "/");
-        strcat(full_path, ent->d_name);
+        char *full_path = _get_full_path(path, ent->d_name);
 
-        // Vedi se c'è un'altra dir dopo questa
-        long int current_index = telldir(dir); // Salva l'index del current file
-        // vai avanti nella dir e vedi se c'e' altro
-        if (readdir(dir) == NULL)
-            level_mask |= (1 << level);
-        seekdir(dir, current_index); // Torna indietro
-
-        // Il file stat contenente informazioni essenziali.
         struct stat f_stat;
+
         if (stat(full_path, &f_stat) != 0)
         {
-            perror("An error has occurred while trying to read file's informations.");
+            perror("An error has occurred while trying to read file's informations");
             return 1;
         }
+
+        long int current_index = telldir(dir);
+        if (readdir(dir) == NULL && head == NULL)
+        {
+            // Se la head non e' null, sebbene questa dir sia l'ultima, non verra stampata per ultima
+            // perche' bisogna ancora stampare i files.
+            level_mask |= (1 << level);
+        }
+        seekdir(dir, current_index);
 
         // Se il file e' una DIRECTORY
         if (S_ISDIR(f_stat.st_mode) == 1)
         {
             (*dir_count)++;
+
             // Stampa il full path se "-f"
             _print_name(level, flags >> 5 & 1 ? full_path : ent->d_name, level_mask, flags, f_stat);
             _treeR(level + 1, full_path, dir_count, file_count, flags, level_mask);
         }
-        // Se non e' dir, stampa solo se non e' settato il bit di stampare solo dir -d.
+        // Se non e' dir, stampa solo se non e' -d
         else if (!(flags >> 4 & 1))
         {
             (*file_count)++;
-            _print_name(level, flags >> 5 & 1 ? full_path : ent->d_name, level_mask, flags, f_stat);
-            // !!!!NON SO SE -ad stampa solo directory, incluse quelle nascoste! IO HO FATTO COSI!!!!!!
-        }
 
+            if (!(flags >> 2 & 1)) // NO --dirsfirsat
+            {
+                _print_name(level, flags >> 5 & 1 ? full_path : ent->d_name, level_mask, flags, f_stat);
+            }
+            else
+            {
+                struct file_node *this_node = malloc(sizeof(file_node));
+
+                char *name_copy = malloc(strlen(full_path) + 1);
+                strcpy(name_copy, flags >> 5 & 1 ? full_path : ent->d_name);
+                this_node->name = name_copy;
+                this_node->stat = f_stat;
+                this_node->next = NULL;
+
+                if (head == NULL)
+                {
+                    head = this_node;
+                }
+
+                if (last_node != NULL)
+                    last_node->next = this_node;
+                last_node = this_node;
+
+                // NO free(full_path);, ci pensera' dopo
+            }
+        }
         free(full_path);
     }
 
-    closedir(dir);
+    while (head != NULL && head->next != NULL)
+    {
+        _print_name(level, head->name, level_mask, flags, head->stat);
 
+        struct file_node *old_head = head;
+        head = head->next;
+        free(old_head); // NON SO SE IN AUTOMATICO LIBERA TUTTI I SUOI CAMPI, o se devo fare free(old_head->name);
+    }
+    if (head != NULL)
+    {
+        level_mask |= (1 << level);
+        _print_name(level, head->name, level_mask, flags, head->stat);
+        free(head);
+    }
+
+    closedir(dir);
     return 0;
+}
+static char *_get_full_path(const char *path, const char *f_name)
+{
+    char *full_path;
+    full_path = (char *)malloc(strlen(path) + strlen(f_name) + 2);
+    // quell'2 e' per la stringa '/' ed il null terminator '/0
+    strcpy(full_path, path);
+    strcat(full_path, "/");
+    strcat(full_path, f_name);
+    return full_path;
 }
 
 static void _print_name(int level, char *name, unsigned int level_mask, unsigned short arg_mask, struct stat f_stat)
