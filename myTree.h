@@ -25,6 +25,7 @@ static void _print_name(int level, char *name, unsigned int level_mask, unsigned
 static int _treeR(int, const char *, int *, int *, unsigned short, unsigned int, int); // passo char come puntatore perche' e' un array di carratteri, cioe' una stringa
 int _pars_argv(int, char **, unsigned short *, char *, int *);
 static char *_get_full_path(const char *, const char *);
+void _print_file_mode(struct stat fileStat);
 int tree(int, char **);
 
 typedef struct file_node // NON SO PERCHE' MA SE NON SCRIVO QUI FILE_NODE MI DA ERRORE
@@ -178,12 +179,13 @@ static void _print_name(int level, char *name, unsigned int level_mask, unsigned
 
     if (arg_mask >> 1 & 1)
     {
-        printf(" %lu%s", f_stat.st_ino, brakets > 1 ? " " : "");
+        printf(" %d%s", f_stat.st_ino, brakets > 1 ? " " : "");
         brakets--;
     }
     if (arg_mask >> 6 & 1)
     {
-        printf("%o%s", f_stat.st_mode, brakets > 1 ? " " : "");
+        _print_file_mode(f_stat);
+        printf("%s", brakets > 1 ? " " : "");
         brakets--;
     }
     if (arg_mask >> 7 & 1)
@@ -300,6 +302,20 @@ int _pars_argv(int argc, char **argv, unsigned short *flags, char *path, int *ma
         }
     }
     return 0;
+}
+
+void _print_file_mode(struct stat fileStat)
+{
+    printf((S_ISDIR(fileStat.st_mode)) ? "d" : "-");
+    printf((fileStat.st_mode & S_IRUSR) ? "r" : "-");
+    printf((fileStat.st_mode & S_IWUSR) ? "w" : "-");
+    printf((fileStat.st_mode & S_IXUSR) ? "x" : "-");
+    printf((fileStat.st_mode & S_IRGRP) ? "r" : "-");
+    printf((fileStat.st_mode & S_IWGRP) ? "w" : "-");
+    printf((fileStat.st_mode & S_IXGRP) ? "x" : "-");
+    printf((fileStat.st_mode & S_IROTH) ? "r" : "-");
+    printf((fileStat.st_mode & S_IWOTH) ? "w" : "-");
+    printf((fileStat.st_mode & S_IXOTH) ? "x" : "-");
 }
 
 /***********
