@@ -157,18 +157,33 @@ static void _print_name(int level, char *name, unsigned int level_mask, unsigned
     for (int i = 0; i < level; i++)
         printf("%s    ", level_mask >> i & 1 ? " " : "│");
 
-    // brakets = e' stato passato almeno un argomento che richiede le brackets?
-    int brakets = (arg_mask >> 10 & 1); // Aggiungere anche altri
+    // Quanti argomenti sono stati passati?
+    int brakets = (arg_mask >> 10 & 1) + (arg_mask >> 7 & 1);
+    int brakets_unmodified = brakets;
 
-    char date[20];
-    strftime(date, sizeof(date), "%d-%m-%y", localtime(&(f_stat.st_mtime)));
+    printf("%s── %s", level_mask >> level & 1 ? "└" : "├", brakets > 0 ? "[" : "");
 
-    printf("%s── %s%s%s%s\n",
-           level_mask >> level & 1 ? "└" : "├",
-           brakets == 1 ? "[" : "",
-           arg_mask >> 10 & 1 ? date : "", // Stampa la data se e' stato settato il bit -D
-           brakets == 1 ? "] " : "",
-           name);
+    if (arg_mask >> 7 & 1)
+    {
+        char full_size[12] = "           ";
+        char size[12];
+        sprintf(size, "%lld", f_stat.st_size);
+        for (int i = 0; i < strlen(size); i++)
+        {
+            full_size[10-i] = size[i]; // La fine e' \0, quindi non va toccata
+        }
+        printf("%s%s", full_size, brakets > 1 ? " " : "");
+        brakets--;
+    }
+    if (arg_mask >> 10 & 1)
+    {
+        char date[20];
+        strftime(date, sizeof(date), "%d-%m-%y", localtime(&(f_stat.st_mtime)));
+        printf("%s%s", date, brakets > 1 ? " " : "");
+        brakets--;
+    }
+
+    printf("%s%s\n", brakets_unmodified > 0 ? "] " : "", name);
 
     // Usa i colori di LS_COLORS se e' settata la variabile
     // char *ls_colors = getenv("LS_COLORS");
