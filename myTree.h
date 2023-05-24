@@ -171,11 +171,21 @@ static void _print_name(int level, char *name, unsigned int level_mask, unsigned
     for (int i = 0; i < level; i++)
         printf("%s    ", level_mask >> i & 1 ? " " : "│");
 
-    int brakets = (arg_mask >> 10 & 1) + (arg_mask >> 7 & 1);
+    int brakets = (arg_mask >> 1 & 1) + (arg_mask >> 6 & 1) + (arg_mask >> 7 & 1) + (arg_mask >> 10 & 1);
     int brakets_unmodified = brakets;
 
     printf("%s── %s", level_mask >> level & 1 ? "└" : "├", brakets > 0 ? "[" : "");
 
+    if (arg_mask >> 1 & 1)
+    {
+        printf(" %lu%s", f_stat.st_ino, brakets > 1 ? " " : "");
+        brakets--;
+    }
+    if (arg_mask >> 6 & 1)
+    {
+        printf("%o%s", f_stat.st_mode, brakets > 1 ? " " : "");
+        brakets--;
+    }
     if (arg_mask >> 7 & 1)
     {
         char full_size[12] = "           ";
