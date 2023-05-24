@@ -4,29 +4,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
-
-/***********
- * Prototipo delle Funzioni
- ***********/
-// NON HO CAPITO A COSA SERVE DICHIARARE IL PROTOTIPO... uso i nomi anche qui per la documentation.
-
-/**
- * @brief Prints the file name, in the right level, along with its info.
- *
- * @param level The level of depth in which the file dwells.
- * @param name File name.
- * @param level_mask Which levels reached the end in the format: i-bit is 1 is level i reached the end, 0 otherwise.
- * @param arg_mask  Which parameters were passed to the main.
- * @param f_stat File info.
- *
- * @return 0 if no errors occurred, 1 otherwise.
- */
-static void _print_name(int level, char *name, unsigned int level_mask, unsigned short arg_mask, struct stat f_stat);
-static int _treeR(int, const char *, int *, int *, unsigned short, unsigned int, int); // passo char come puntatore perche' e' un array di carratteri, cioe' una stringa
-int _pars_argv(int, char **, unsigned short *, char *, int *);
-static char *_get_full_path(const char *, const char *);
-void _print_file_mode(struct stat fileStat);
-int tree(int, char **);
+#include "printer.c"
+#include "walker.h"
 
 typedef struct file_node // NON SO PERCHE' MA SE NON SCRIVO QUI FILE_NODE MI DA ERRORE
 {
@@ -38,6 +17,7 @@ typedef struct file_node // NON SO PERCHE' MA SE NON SCRIVO QUI FILE_NODE MI DA 
 /***********
  * Funzioni di Utility
  ***********/
+
 // LE FUNZIONI STATIC NON DOVREBBERO ESSERE VISIBILI ANCHE ALL'ESTERNO.
 // Uso const davanti al parametro perche' e' un riferimento ma la funzione non deve modificare il valore.
 static int _treeR(int level, const char *path, int *dir_count, int *file_count, unsigned short flags, unsigned int level_mask, int max_level)
@@ -155,73 +135,6 @@ static char *_get_full_path(const char *path, const char *f_name)
     return full_path;
 }
 
-static void _print_name(int level, char *name, unsigned int level_mask, unsigned short arg_mask, struct stat f_stat)
-{
-    /* La level_mask indica quali livelli hanno raggiunto la fine della dir.
-    La level_mask non e' globale, ma e' associata ad un singolo file; cosi'
-    che quando se la passa nelle cartelle ricorsive, si tiene il valore di prima, ma quando
-    ritorna dalla ricorsione, resetta i livelli. Se lo passassi ogni volta per riferimento,
-    quando un livello raggiunge la fine sopra, poi dovrei reimpostarlo per un livello ricorsivo
-    che riraggiunge la fine sotto.
-    Per farla breve: manitene le modifiche all'andata della ricorsione, non le mantiene al ritorno.
-    */
-
-    // Non uso gli unicodes per rendere piu' comprensibile il codice
-    // visto che con gli operatori ternari potrebbe risultare confuso.
-
-    for (int i = 0; i < level; i++)
-        printf("%s    ", level_mask >> i & 1 ? " " : "│");
-
-    int brakets = (arg_mask >> 1 & 1) + (arg_mask >> 6 & 1) + (arg_mask >> 7 & 1) + (arg_mask >> 10 & 1);
-    int brakets_unmodified = brakets;
-
-    printf("%s── %s", level_mask >> level & 1 ? "└" : "├", brakets > 0 ? "[" : "");
-
-    if (arg_mask >> 1 & 1)
-    {
-        printf(" %d%s", f_stat.st_ino, brakets > 1 ? " " : "");
-        brakets--;
-    }
-    if (arg_mask >> 6 & 1)
-    {
-        _print_file_mode(f_stat);
-        printf("%s", brakets > 1 ? " " : "");
-        brakets--;
-    }
-    if (arg_mask >> 7 & 1)
-    {
-        char full_size[12] = "           ";
-        char size[12];
-        sprintf(size, "%lld", f_stat.st_size);
-        for (int i = 0; i < strlen(size); i++)
-        {
-            full_size[10 - i] = size[i]; // La fine e' \0, quindi non va toccata
-        }
-        printf("%s%s", full_size, brakets > 1 ? " " : "");
-        brakets--;
-    }
-    if (arg_mask >> 10 & 1)
-    {
-        char date[20];
-        strftime(date, sizeof(date), "%d-%m-%y", localtime(&(f_stat.st_mtime)));
-        printf("%s%s", date, brakets > 1 ? " " : "");
-        brakets--;
-    }
-
-    printf("%s%s\n", brakets_unmodified > 0 ? "] " : "", name);
-
-    // Usa i colori di LS_COLORS se e' settata la variabile
-    // char *ls_colors = getenv("LS_COLORS");
-    // if (ls_colors != NULL)
-    //     printf("\u251C\u2500\u2500\u2500 \033[%sm%s\033[0m\n", ls_colors, name);
-    // else
-
-    // Se non scrivo sul terminale di vs code "chcp 65001" non visualizza questi chars
-    // printf("\u251C\u2500\u2500\u2500");  Stampa "├──"
-    // printf("\u2502");                    Stampa "│"
-    // printf("\u2514\u2500\u2500\u2500");  Stampa "└──"
-}
-
 int _pars_argv(int argc, char **argv, unsigned short *flags, char *path, int *max_level)
 {
     // Parsing arguments
@@ -304,19 +217,6 @@ int _pars_argv(int argc, char **argv, unsigned short *flags, char *path, int *ma
     return 0;
 }
 
-void _print_file_mode(struct stat fileStat)
-{
-    printf((S_ISDIR(fileStat.st_mode)) ? "d" : "-");
-    printf((fileStat.st_mode & S_IRUSR) ? "r" : "-");
-    printf((fileStat.st_mode & S_IWUSR) ? "w" : "-");
-    printf((fileStat.st_mode & S_IXUSR) ? "x" : "-");
-    printf((fileStat.st_mode & S_IRGRP) ? "r" : "-");
-    printf((fileStat.st_mode & S_IWGRP) ? "w" : "-");
-    printf((fileStat.st_mode & S_IXGRP) ? "x" : "-");
-    printf((fileStat.st_mode & S_IROTH) ? "r" : "-");
-    printf((fileStat.st_mode & S_IWOTH) ? "w" : "-");
-    printf((fileStat.st_mode & S_IXOTH) ? "x" : "-");
-}
 
 /***********
  * Core Function
