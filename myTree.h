@@ -8,10 +8,22 @@
 /***********
  * Prototipo delle Funzioni
  ***********/
-// NON HO CAPITO A COSA SERVE DICHIARARE IL PROTOTIPO
-static void _print_name(int, char *, unsigned int, unsigned short, struct stat);
-static int _treeR(int, const char *, int *, int *, unsigned short, unsigned int); // passo char come puntatore perche' e' un array di carratteri, cioe' una stringa
-int _pars_argv(int, char **, unsigned short *, char *);
+// NON HO CAPITO A COSA SERVE DICHIARARE IL PROTOTIPO... uso i nomi anche qui per la documentation.
+
+/**
+ * @brief Prints the file name, in the right level, along with its info.
+ *
+ * @param level The level of depth in which the file dwells.
+ * @param name File name.
+ * @param level_mask Which levels reached the end in the format: i-bit is 1 is level i reached the end, 0 otherwise.
+ * @param arg_mask  Which parameters were passed to the main.
+ * @param f_stat File info.
+ *
+ * @return 0 if no errors occurred, 1 otherwise.
+ */
+static void _print_name(int level, char *name, unsigned int level_mask, unsigned short arg_mask, struct stat f_stat);
+static int _treeR(int, const char *, int *, int *, unsigned short, unsigned int, int); // passo char come puntatore perche' e' un array di carratteri, cioe' una stringa
+int _pars_argv(int, char **, unsigned short *, char *, int *);
 static char *_get_full_path(const char *, const char *);
 int tree(int, char **);
 
@@ -27,7 +39,7 @@ typedef struct file_node // NON SO PERCHE' MA SE NON SCRIVO QUI FILE_NODE MI DA 
  ***********/
 // LE FUNZIONI STATIC NON DOVREBBERO ESSERE VISIBILI ANCHE ALL'ESTERNO.
 // Uso const davanti al parametro perche' e' un riferimento ma la funzione non deve modificare il valore.
-static int _treeR(int level, const char *path, int *dir_count, int *file_count, unsigned short flags, unsigned int level_mask)
+static int _treeR(int level, const char *path, int *dir_count, int *file_count, unsigned short flags, unsigned int level_mask, int max_level)
 {
     DIR *dir;
 
@@ -74,7 +86,10 @@ static int _treeR(int level, const char *path, int *dir_count, int *file_count, 
 
             // Stampa il full path se "-f"
             _print_name(level, flags >> 5 & 1 ? full_path : ent->d_name, level_mask, flags, f_stat);
-            _treeR(level + 1, full_path, dir_count, file_count, flags, level_mask);
+            if (max_level == 0 || level + 1 < max_level)
+            {
+                _treeR(level + 1, full_path, dir_count, file_count, flags, level_mask, max_level);
+            }
         }
         // Se non e' dir, stampa solo se non e' -d
         else if (!(flags >> 4 & 1))
@@ -153,11 +168,9 @@ static void _print_name(int level, char *name, unsigned int level_mask, unsigned
     // Non uso gli unicodes per rendere piu' comprensibile il codice
     // visto che con gli operatori ternari potrebbe risultare confuso.
 
-    // Stampa gli spazi prima del nome.
     for (int i = 0; i < level; i++)
         printf("%s    ", level_mask >> i & 1 ? " " : "│");
 
-    // Quanti argomenti sono stati passati?
     int brakets = (arg_mask >> 10 & 1) + (arg_mask >> 7 & 1);
     int brakets_unmodified = brakets;
 
@@ -170,7 +183,7 @@ static void _print_name(int level, char *name, unsigned int level_mask, unsigned
         sprintf(size, "%lld", f_stat.st_size);
         for (int i = 0; i < strlen(size); i++)
         {
-            full_size[10-i] = size[i]; // La fine e' \0, quindi non va toccata
+            full_size[10 - i] = size[i]; // La fine e' \0, quindi non va toccata
         }
         printf("%s%s", full_size, brakets > 1 ? " " : "");
         brakets--;
@@ -197,7 +210,7 @@ static void _print_name(int level, char *name, unsigned int level_mask, unsigned
     // printf("\u2514\u2500\u2500\u2500");  Stampa "└──"
 }
 
-int _pars_argv(int argc, char **argv, unsigned short *flags, char *path)
+int _pars_argv(int argc, char **argv, unsigned short *flags, char *path, int *max_level)
 {
     // Parsing arguments
     int path_priority = 0;
@@ -226,6 +239,23 @@ int _pars_argv(int argc, char **argv, unsigned short *flags, char *path)
             strcpy(path, argv[i]); // ... altrimenti quello che viene dopo e' un path.
             continue;
         }
+        else if (strcmp(argv[i], "-L") == 0)
+        {
+            if (i + 1 == argc)
+            {
+                printf("tree: Missing argument to -L option.");
+                return 1;
+            }
+            i++;
+            int level = atoi(argv[i]); // Se non si puo' convertire ritorna 0.
+            if (level < 1)
+            {
+                printf("tree: Invalid level, must be greater than 0.");
+                return 1;
+            }
+            *max_level = level;
+            continue;
+        }
 
         int lines = 0;                // numero di trattini iniziali
         while (argv[i][lines] == '-') // se e' finita la stringa incontra '\0' che e' diverso da '-' e termina il cilo.
@@ -239,14 +269,14 @@ int _pars_argv(int argc, char **argv, unsigned short *flags, char *path)
             for (int c = 1; c < strlen(argv[i]); c++)
             {
                 int c2;
-                for (c2 = 0; c2 < 12; c2++)
+                for (c2 = 0; c2 < 11; c2++)
                 {
-                    if (argv[i][c] != "adfpsugDrtL"[c2])
+                    if (argv[i][c] != "adfpsugDrt"[c2])
                         continue;
                     *(flags) |= 1 << (c2 + 3); // i primi 3 sono help, inodes e dirsfirst
                     break;
                 }
-                if (c2 == 12) // Se avesse trovato un argomento valido il ciclo sarebbe finito con un break (prima di c2 = 11)
+                if (c2 == 11) // Se avesse trovato un argomento valido il ciclo sarebbe finito con un break (prima di c2 = 11)
                 {
                     printf("here i = %d, n = %d\ntree: Invalid argument -\'%c\'.", i, argc, argv[i][c]);
                     return 1;
@@ -273,8 +303,9 @@ int tree(int argc, char **argv)
     char path[256] = "."; // Di base e' questa directory, ma quando parsa gli argv potrebbe cambiare
     int dir_count = 0, file_count = 0;
     // NON SONO SICURO SE VADA USATO UN UNSIGNED SHORT
-    unsigned short flags = 0b0;                    // 16 bit: --help --inodes --dirsfirst -adfpsugDrtL
-    if (_pars_argv(argc, argv, &flags, path) == 1) // Se gli argomenti sono stati passati male.
+    unsigned short flags = 0b0; // 16 bit: --help --inodes --dirsfirst -adfpsugDrt. l'-L bit non ci interessa perche' quello se e' stato dato si riconosce dal valore di max_level.
+    int max_level = 0;
+    if (_pars_argv(argc, argv, &flags, path, &max_level) == 1) // Se gli argomenti sono stati passati male.
         return 1;
 
     // Se il comando e' help.
@@ -286,7 +317,7 @@ int tree(int argc, char **argv)
     else
     {
         printf("%s\n", path); // printa la directory iniziale su cui si scorre
-        int errOrNot = _treeR(0, path, &dir_count, &file_count, flags, 0b0);
+        int errOrNot = _treeR(0, path, &dir_count, &file_count, flags, 0b0, max_level);
         printf("\n%d directories, %d files", dir_count, file_count);
         return errOrNot;
     }
