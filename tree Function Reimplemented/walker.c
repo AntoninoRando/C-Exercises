@@ -156,7 +156,7 @@ int tree(int argc, char **argv)
     {
         printf("%s\n", path); // printa la directory iniziale su cui si scorre
         int errOrNot = _treeR(0, path, &dir_count, &file_count, flags, 0b0, max_level);
-        printf("\n%d directories, %d files", dir_count, file_count);
+        printf("\n%d directories, %d files\n", dir_count, file_count);
         return errOrNot;
     }
 }

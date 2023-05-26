@@ -1,4 +1,6 @@
 #include <sys/stat.h>
+#include <pwd.h>
+#include <grp.h>
 #include "printer.h"
 
 void _print_file_mode(struct stat fileStat)
@@ -32,27 +34,27 @@ static void _print_name(int level, char *name, unsigned int level_mask, unsigned
     for (int i = 0; i < level; i++)
         printf("%s    ", level_mask >> i & 1 ? " " : "│");
 
-    int brakets = (arg_mask >> 1 & 1) + (arg_mask >> 6 & 1) + (arg_mask >> 7 & 1) + (arg_mask >> 10 & 1);
+    int brakets = (arg_mask >> 1 & 1) + (arg_mask >> 6 & 1) + (arg_mask >> 7 & 1) + (arg_mask >> 8 & 1) + (arg_mask >> 9 & 1) + (arg_mask >> 10 & 1);
     int brakets_unmodified = brakets;
 
     printf("%s── %s", level_mask >> level & 1 ? "└" : "├", brakets > 0 ? "[" : "");
 
-    if (arg_mask >> 1 & 1)
+    if (arg_mask >> 1 & 1) // --inodes
     {
-        printf(" %d%s", f_stat.st_ino, brakets > 1 ? " " : "");
+        printf(" %lu%s", f_stat.st_ino, brakets > 1 ? " " : "");
         brakets--;
     }
-    if (arg_mask >> 6 & 1)
+    if (arg_mask >> 6 & 1) // -p
     {
         _print_file_mode(f_stat);
         printf("%s", brakets > 1 ? " " : "");
         brakets--;
     }
-    if (arg_mask >> 7 & 1)
+    if (arg_mask >> 7 & 1) // -s
     {
         char full_size[12] = "           ";
         char size[12];
-        sprintf(size, "%lld", f_stat.st_size);
+        sprintf(size, "%ld", f_stat.st_size);
         for (int i = 0; i < strlen(size); i++)
         {
             full_size[10 - i] = size[i]; // La fine e' \0, quindi non va toccata
@@ -60,7 +62,35 @@ static void _print_name(int level, char *name, unsigned int level_mask, unsigned
         printf("%s%s", full_size, brakets > 1 ? " " : "");
         brakets--;
     }
-    if (arg_mask >> 10 & 1)
+    if (arg_mask >> 8 & 1) // -u
+    {
+        struct passwd *pwd = getpwuid(f_stat.st_uid);
+        if (pwd->pw_name == NULL)
+        {
+            printf("PID %i", f_stat.st_uid);
+        }
+        else
+        {
+            printf("%s", pwd->pw_name);
+        }
+        printf("%s", brakets > 1 ? " " : "");
+        brakets--;
+    }
+    if (arg_mask >> 9 & 1) // -g
+    {
+        struct group *grp = getgrgid(f_stat.st_gid);
+        if (grp->gr_name == NULL)
+        {
+            printf("GID %i", f_stat.st_gid);
+        }
+        else
+        {
+            printf("%s", grp->gr_name);
+        }
+        printf("%s", brakets > 1 ? " " : "");
+        brakets--;
+    }
+    if (arg_mask >> 10 & 1) // -D
     {
         char date[20];
         strftime(date, sizeof(date), "%d-%m-%y", localtime(&(f_stat.st_mtime)));
