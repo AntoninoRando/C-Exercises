@@ -100,22 +100,18 @@ static void _insert(struct file_node **head, struct file_node **tail, struct fil
 
     int tail_remains = 0;
 
-    // Then, reorder.
-    if (flags >> 2 & 1) // --dirsfirst + priority quindi dopo gli altri cosi' da sovrascriverli.
+    if (_is_position_ok(node, flags) == 0)
     {
-        if (_respect_dirsfirst(node) == 0)
-        {
-            _move_up(node);
-            tail_remains = 1;
-        }
-        while (_respect_dirsfirst(node) == 0)
-        {
-            _move_up(node);
-        }
-        if (node->prev == NULL)
-        {
-            *head = node;
-        }
+        _move_up(node);
+        tail_remains = 1;
+    }
+    while (_is_position_ok(node, flags) == 0)
+    {
+        _move_up(node);
+    }
+    if (node->prev == NULL)
+    {
+        *head = node;
     }
 
     if (tail_remains == 0)
@@ -124,16 +120,6 @@ static void _insert(struct file_node **head, struct file_node **tail, struct fil
     }
 }
 
-// Assume che ci sia qualcosa prima, altrimenti i "_respect_*" check andrebbero a buon fine.
-/**
- * @brief Move a node toward the head of the linked list.
- * Before call:
- * prev <-> node <-> next
- * After call:
- * node <-> prev <-> next
- *
- * @param node
- */
 static void _move_up(struct file_node *node)
 {
     if (node == NULL || node->prev == NULL)
@@ -179,6 +165,62 @@ static int _respect_dirsfirst(struct file_node *node)
         return 0;
     }
 
-    // Casi rimanenti: 1) entrambi dir o non: ok 2) non dir ma quello prima si': ok.
+    // Non dir ma quello prima si': va bene ma non puo' salire
+    if (node->dir_full_path == NULL && node->prev->dir_full_path != NULL)
+    {
+        return -1;
+    }
+
+    // Casi rimanenti: 1) entrambi dir 2) entrambi non dir.
+    return 1;
+}
+
+static int _respect_r(struct file_node *node)
+{
+    // Primo nodo: va bene
+    if (node->prev == NULL)
+    {
+        return 1;
+    }
+
+    return strcmp(node->name, node->prev->name) < 0 ? 1 : 0;
+}
+
+static int _respect_t(struct file_node *node)
+{
+    // Primo nodo: va bene
+    if (node->prev == NULL)
+    {
+        return 1;
+    }
+
+    return node->date < node->prev->date;
+}
+
+static int _is_position_ok(struct file_node *node, unsigned short flags)
+{
+    if (flags >> 2 & 1)
+    {
+        int dirsfirst = _respect_dirsfirst(node);
+        if (dirsfirst == 0)
+        {
+            return 0;
+        }
+        if (dirsfirst == -1)
+        {
+            return 1;
+        }
+    }
+
+    if (flags >> 11 & 1)
+    {
+        return _respect_r(node);
+    }
+
+    if (flags >> 12)
+    {
+        return _respect_t(node);
+    }
+
     return 1;
 }

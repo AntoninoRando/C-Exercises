@@ -20,3 +20,5 @@ x. Se invece era un file normale E non è settato il "-d" bit (4):
 Per fare le cartele prima:
 - quando incontra una dir la stampa;
 - quando incontra un file, richiama la funzione in modo che parta dal file dopo. Al ritorno, stamperà il file.
+
+... DA FINIRE

@@ -16,4 +16,10 @@ static void _insert(struct file_node **head, struct file_node **tail, struct fil
 
 static int _respect_dirsfirst(struct file_node *node);
 
+static int _respect_r(struct file_node *node);
+
+static int _respect_t(struct file_node *node);
+
+static int _is_position_ok(struct file_node *node, unsigned short flags);
+
 static void _move_up(struct file_node *node);
