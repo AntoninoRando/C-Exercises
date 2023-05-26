@@ -13,6 +13,7 @@ typedef struct file_node // NON SO PERCHE' MA SE NON SCRIVO QUI FILE_NODE MI DA 
     time_t date;
     struct stat stat;
     struct file_node *next;
+    struct file_node *prev;
 } file_node;
 
 static char *_get_full_path(const char *path, const char *f_name)
@@ -37,7 +38,7 @@ int fill_list(struct file_node **head, const char *path, unsigned short flags)
         return 1; // ATTENZIONE, VA ritornato PURE SULLA RICORSIONE
     }
 
-    struct file_node *last_node = NULL;
+    struct file_node *tail = NULL;
     struct dirent *ent;
 
     while ((ent = readdir(dir)) != NULL)
@@ -71,65 +72,113 @@ int fill_list(struct file_node **head, const char *path, unsigned short flags)
         this_node->name = name_copy;
         this_node->stat = f_stat;
         this_node->date = f_stat.st_mtime;
-        this_node->next = NULL;
+        this_node->dir_full_path = S_ISDIR(f_stat.st_mode) ? full_path : NULL; // DUBBIO: free(full_path) se non dir?
 
-        if (S_ISDIR(f_stat.st_mode))
-        {
-            this_node->dir_full_path = full_path;
-            if (flags >> 2 & 1)
-            {
-                _insert_by_dir(head, this_node);
-                continue;
-            }
-        }
-        else
-        {
-            this_node->dir_full_path = NULL;
-            free(full_path);
-        }
-        _insert(head, &last_node, this_node);
+        _insert(head, &tail, this_node, flags);
     }
 
     closedir(dir);
     return 0;
 }
 
-static void _insert_by_dir(struct file_node **head, struct file_node *dir_node)
+static void _insert(struct file_node **head, struct file_node **tail, struct file_node *node, unsigned short flags)
 {
+    // Replace the head if there is no head.
     if (*head == NULL)
     {
-        *head = dir_node;
+        node->next = NULL;
+        node->prev = NULL;
+        *head = node;
+        *tail = node;
         return;
     }
 
-    // Alla prima dir incontrata la head cambia, quindi non c'e' bisogno di farla scorrere.
-    if ((*head)->dir_full_path == NULL) {
-        dir_node->next = *head;
-        *head = dir_node;
-        return;
-    }
+    // First, insert at the bottom.
+    (*tail)->next = node;
+    node->next = NULL;
+    node->prev = *tail;
 
-    struct file_node *iterator = *head;
-    while (iterator->next != NULL && iterator->next->dir_full_path != NULL)
+    int tail_remains = 0;
+
+    // Then, reorder.
+    if (flags >> 2 & 1) // --dirsfirst + priority quindi dopo gli altri cosi' da sovrascriverli.
     {
-        iterator = iterator->next;
+        if (_respect_dirsfirst(node) == 0)
+        {
+            _move_up(node);
+            tail_remains = 1;
+        }
+        while (_respect_dirsfirst(node) == 0)
+        {
+            _move_up(node);
+        }
+        if (node->prev == NULL)
+        {
+            *head = node;
+        }
     }
 
-    dir_node->next = iterator->next;
-    iterator->next = dir_node;
+    if (tail_remains == 0)
+    {
+        *tail = node; // Change the tail.
+    }
 }
 
-static void _insert(struct file_node **head, struct file_node **last_node, struct file_node *node)
+// Assume che ci sia qualcosa prima, altrimenti i "_respect_*" check andrebbero a buon fine.
+/**
+ * @brief Move a node toward the head of the linked list.
+ * Before call:
+ * prev <-> node <-> next
+ * After call:
+ * node <-> prev <-> next
+ *
+ * @param node
+ */
+static void _move_up(struct file_node *node)
 {
-    if (*head == NULL)
+    if (node == NULL || node->prev == NULL)
     {
-        *head = node;
+        return;
     }
 
-    if (*last_node != NULL)
+    struct file_node *prev_prev = node->prev->prev;
+    struct file_node *prev = node->prev;
+    struct file_node *next = node->next;
+
+    node->next = prev;
+    node->prev = prev_prev;
+
+    prev->next = next;
+    prev->prev = node;
+
+    if (prev_prev != NULL)
     {
-        (*last_node)->next = node;
+        prev_prev->next = node;
     }
 
-    *last_node = node;
+    if (next != NULL)
+    {
+        next->prev = prev;
+    }
+
+    // free VA FATTO?
+}
+
+// Controlla se node (non NULL) e' in una posizione VALIDA per --dirsfirst
+static int _respect_dirsfirst(struct file_node *node)
+{
+    // Primo nodo: va bene
+    if (node->prev == NULL)
+    {
+        return 1;
+    }
+
+    // E' una dir ma quello prima no: non va bene, deve salire.
+    if (node->dir_full_path != NULL && node->prev->dir_full_path == NULL)
+    {
+        return 0;
+    }
+
+    // Casi rimanenti: 1) entrambi dir o non: ok 2) non dir ma quello prima si': ok.
+    return 1;
 }
