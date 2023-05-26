@@ -1,9 +1,0 @@
-{
-    "files.associations": {
-        "*.cs": "csharp",
-        "stat.h": "c",
-        "string.h": "c",
-        "mytree.h": "c",
-        "typeinfo": "c"
-    }
-}
