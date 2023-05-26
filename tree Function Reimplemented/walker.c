@@ -10,6 +10,8 @@
 typedef struct file_node // NON SO PERCHE' MA SE NON SCRIVO QUI FILE_NODE MI DA ERRORE
 {
     char *name;
+    char *dir_full_path;
+    time_t date;
     struct stat stat;
     struct file_node *next;
 } file_node;
@@ -18,19 +20,18 @@ typedef struct file_node // NON SO PERCHE' MA SE NON SCRIVO QUI FILE_NODE MI DA 
  * Funzioni di Utility
  ***********/
 
-// LE FUNZIONI STATIC NON DOVREBBERO ESSERE VISIBILI ANCHE ALL'ESTERNO.
-// Uso const davanti al parametro perche' e' un riferimento ma la funzione non deve modificare il valore.
-static int _treeR(int level, const char *path, int *dir_count, int *file_count, unsigned short flags, unsigned int level_mask, int max_level)
+static int _fill_list(struct file_node **head, const char *path, unsigned short flags)
 {
     DIR *dir;
 
     if ((dir = opendir(path)) == NULL)
     {
         perror(path);
+        closedir(dir);
         return 1; // ATTENZIONE, VA ritornato PURE SULLA RICORSIONE
     }
 
-    struct file_node *head = NULL, *last_node = NULL;
+    struct file_node *last_node = NULL;
     struct dirent *ent;
 
     while ((ent = readdir(dir)) != NULL)
@@ -38,7 +39,7 @@ static int _treeR(int level, const char *path, int *dir_count, int *file_count, 
         if (strcmp(".", ent->d_name) == 0 || strcmp("..", ent->d_name) == 0)
             continue;
 
-        if (ent->d_name[0] == '.' && !(flags >> 3 & 1))
+        if (ent->d_name[0] == '.' && !(flags >> 3 & 1)) // Privata e non -a.
             continue;
 
         char *full_path = _get_full_path(path, ent->d_name);
@@ -48,80 +49,88 @@ static int _treeR(int level, const char *path, int *dir_count, int *file_count, 
         if (stat(full_path, &f_stat) != 0)
         {
             perror("An error has occurred while trying to read file's informations");
+            closedir(dir);
             return 1;
         }
 
-        long int current_index = telldir(dir);
-        if (readdir(dir) == NULL && head == NULL)
+        if (!S_ISDIR(f_stat.st_mode) && flags >> 4 & 1)  // Non dir e -d.
         {
-            // Se la head non e' null, sebbene questa dir sia l'ultima, non verra stampata per ultima
-            // perche' bisogna ancora stampare i files.
-            level_mask |= (1 << level);
+            continue;
         }
-        seekdir(dir, current_index);
 
-        // Se il file e' una DIRECTORY
-        if (S_ISDIR(f_stat.st_mode) == 1)
+        char *name_copy = malloc(strlen(full_path) + 1);
+        strcpy(name_copy, flags >> 5 & 1 ? full_path : ent->d_name); // Se -f il nome sara' il full path.
+
+        struct file_node *this_node = malloc(sizeof(file_node));
+        this_node->name = name_copy;
+        if (S_ISDIR(f_stat.st_mode))
         {
-            (*dir_count)++;
-
-            // Stampa il full path se "-f"
-            _print_name(level, flags >> 5 & 1 ? full_path : ent->d_name, level_mask, flags, f_stat);
-            if (max_level == 0 || level + 1 < max_level)
-            {
-                _treeR(level + 1, full_path, dir_count, file_count, flags, level_mask, max_level);
-            }
+            this_node->dir_full_path = full_path;
         }
-        // Se non e' dir, stampa solo se non e' -d
-        else if (!(flags >> 4 & 1))
+        else
         {
-            (*file_count)++;
-
-            if (!(flags >> 2 & 1)) // NO --dirsfirsat
-            {
-                _print_name(level, flags >> 5 & 1 ? full_path : ent->d_name, level_mask, flags, f_stat);
-            }
-            else
-            {
-                struct file_node *this_node = malloc(sizeof(file_node));
-
-                char *name_copy = malloc(strlen(full_path) + 1);
-                strcpy(name_copy, flags >> 5 & 1 ? full_path : ent->d_name);
-                this_node->name = name_copy;
-                this_node->stat = f_stat;
-                this_node->next = NULL;
-
-                if (head == NULL)
-                {
-                    head = this_node;
-                }
-
-                if (last_node != NULL)
-                    last_node->next = this_node;
-                last_node = this_node;
-
-                // NO free(full_path);, ci pensera' dopo
-            }
+            this_node->dir_full_path = NULL;
+            free(full_path);
         }
-        free(full_path);
+        this_node->stat = f_stat;
+        this_node->date = f_stat.st_mtime;
+        this_node->next = NULL;
+
+        if (*head == NULL)
+        {
+            *head = this_node;
+        }
+
+        if (last_node != NULL)
+        {
+            last_node->next = this_node;
+        }
+        last_node = this_node;
     }
 
-    while (head != NULL && head->next != NULL)
+    closedir(dir);
+    return 0;
+}
+
+// LE FUNZIONI STATIC NON DOVREBBERO ESSERE VISIBILI ANCHE ALL'ESTERNO.
+// Uso const davanti al parametro perche' e' un riferimento ma la funzione non deve modificare il valore.
+static int _treeR(int level, const char *path, int *dir_count, int *file_count, unsigned short flags, unsigned int level_mask, int max_level)
+{
+    struct file_node *head = NULL;
+
+    // Error while filling the list.
+    if (_fill_list(&head, path, flags) == 1)
     {
+        return 1;
+    }
+
+    while (head != NULL)
+    {
+        if (head->next == NULL)
+        {
+            level_mask |= (1 << level);
+        }
+
         _print_name(level, head->name, level_mask, flags, head->stat);
+
+        if (head->dir_full_path != NULL)
+        {
+            (*dir_count)++;
+            if (max_level == 0 || level + 1 < max_level) // Quando c'e' -L.
+            {
+                _treeR(level + 1, head->dir_full_path, dir_count, file_count, flags, level_mask, max_level);
+            }
+        }
+        else
+        {
+            (*file_count)++;
+        }
 
         struct file_node *old_head = head;
         head = head->next;
         free(old_head); // NON SO SE IN AUTOMATICO LIBERA TUTTI I SUOI CAMPI, o se devo fare free(old_head->name);
     }
-    if (head != NULL)
-    {
-        level_mask |= (1 << level);
-        _print_name(level, head->name, level_mask, flags, head->stat);
-        free(head);
-    }
 
-    closedir(dir);
     return 0;
 }
 static char *_get_full_path(const char *path, const char *f_name)
@@ -216,7 +225,6 @@ int _pars_argv(int argc, char **argv, unsigned short *flags, char *path, int *ma
     }
     return 0;
 }
-
 
 /***********
  * Core Function
