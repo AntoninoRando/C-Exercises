@@ -4,93 +4,10 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
-#include "printer.c"
 #include "walker.h"
+#include "printer.c"
+#include "linkedListUtils.c"
 
-typedef struct file_node // NON SO PERCHE' MA SE NON SCRIVO QUI FILE_NODE MI DA ERRORE
-{
-    char *name;
-    char *dir_full_path;
-    time_t date;
-    struct stat stat;
-    struct file_node *next;
-} file_node;
-
-/***********
- * Funzioni di Utility
- ***********/
-
-static int _fill_list(struct file_node **head, const char *path, unsigned short flags)
-{
-    DIR *dir;
-
-    if ((dir = opendir(path)) == NULL)
-    {
-        perror(path);
-        closedir(dir);
-        return 1; // ATTENZIONE, VA ritornato PURE SULLA RICORSIONE
-    }
-
-    struct file_node *last_node = NULL;
-    struct dirent *ent;
-
-    while ((ent = readdir(dir)) != NULL)
-    {
-        if (strcmp(".", ent->d_name) == 0 || strcmp("..", ent->d_name) == 0)
-            continue;
-
-        if (ent->d_name[0] == '.' && !(flags >> 3 & 1)) // Privata e non -a.
-            continue;
-
-        char *full_path = _get_full_path(path, ent->d_name);
-
-        struct stat f_stat;
-
-        if (stat(full_path, &f_stat) != 0)
-        {
-            perror("An error has occurred while trying to read file's informations");
-            closedir(dir);
-            return 1;
-        }
-
-        if (!S_ISDIR(f_stat.st_mode) && flags >> 4 & 1)  // Non dir e -d.
-        {
-            continue;
-        }
-
-        char *name_copy = malloc(strlen(full_path) + 1);
-        strcpy(name_copy, flags >> 5 & 1 ? full_path : ent->d_name); // Se -f il nome sara' il full path.
-
-        struct file_node *this_node = malloc(sizeof(file_node));
-        this_node->name = name_copy;
-        if (S_ISDIR(f_stat.st_mode))
-        {
-            this_node->dir_full_path = full_path;
-        }
-        else
-        {
-            this_node->dir_full_path = NULL;
-            free(full_path);
-        }
-        this_node->stat = f_stat;
-        this_node->date = f_stat.st_mtime;
-        this_node->next = NULL;
-
-        if (*head == NULL)
-        {
-            *head = this_node;
-        }
-
-        if (last_node != NULL)
-        {
-            last_node->next = this_node;
-        }
-        last_node = this_node;
-    }
-
-    closedir(dir);
-    return 0;
-}
 
 // LE FUNZIONI STATIC NON DOVREBBERO ESSERE VISIBILI ANCHE ALL'ESTERNO.
 // Uso const davanti al parametro perche' e' un riferimento ma la funzione non deve modificare il valore.
@@ -99,7 +16,7 @@ static int _treeR(int level, const char *path, int *dir_count, int *file_count, 
     struct file_node *head = NULL;
 
     // Error while filling the list.
-    if (_fill_list(&head, path, flags) == 1)
+    if (fill_list(&head, path, flags) == 1)
     {
         return 1;
     }
@@ -128,20 +45,10 @@ static int _treeR(int level, const char *path, int *dir_count, int *file_count, 
 
         struct file_node *old_head = head;
         head = head->next;
-        free(old_head); // NON SO SE IN AUTOMATICO LIBERA TUTTI I SUOI CAMPI, o se devo fare free(old_head->name);
+        free(old_head);
     }
 
     return 0;
-}
-static char *_get_full_path(const char *path, const char *f_name)
-{
-    char *full_path;
-    full_path = (char *)malloc(strlen(path) + strlen(f_name) + 2);
-    // quell'2 e' per la stringa '/' ed il null terminator '/0
-    strcpy(full_path, path);
-    strcat(full_path, "/");
-    strcat(full_path, f_name);
-    return full_path;
 }
 
 int _pars_argv(int argc, char **argv, unsigned short *flags, char *path, int *max_level)
@@ -226,9 +133,6 @@ int _pars_argv(int argc, char **argv, unsigned short *flags, char *path, int *ma
     return 0;
 }
 
-/***********
- * Core Function
- ***********/
 int tree(int argc, char **argv)
 {
     // In linux la massima lunghezza di un file dovrebbe essere 255 byte.
