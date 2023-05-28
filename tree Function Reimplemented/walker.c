@@ -148,25 +148,7 @@ int tree(int argc, char **argv)
 
     if (arg_mask >> 0 & 1) // --help
     {
-        // Open file
-        FILE *fptr;
-        fptr = fopen("doc.txt", "r");
-        if (fptr == NULL)
-        {
-            printf("Cannot open file \n");
-            exit(0);
-        }
-
-        // Read contents from file
-        char c = fgetc(fptr);
-        while (c != EOF)
-        {
-            printf("%c", c);
-            c = fgetc(fptr);
-        }
-
-        fclose(fptr);
-        //printf("Documentazione");
+        print_help();
         return 0;
     }
 

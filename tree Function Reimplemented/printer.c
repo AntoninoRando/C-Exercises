@@ -37,7 +37,7 @@ static void _print_name(int level, char *name, unsigned int level_mask, unsigned
     printf("%s── ", level_mask >> level & 1 ? "└" : "├");
     print_args(arg_mask, f_stat);
     print_colorized(name, f_stat);
-    //printf("%s\n", name);
+    // printf("%s\n", name);
 
     /* Se non scrivo sul terminale di vs code "chcp 65001" non visualizza questi chars
     printf("\u251C\u2500\u2500\u2500");  Stampa "├──"
@@ -143,7 +143,6 @@ void print_colorized(const char *name, struct stat f_stat)
         strcpy(file_type, "pi"); // FIFO
     // TODO AGGIUNGERE ALTRI TIPI
 
-
     // Parsing the LS_COLORS variable
     // char ls_copy[strlen(ls_colors) + 1];
     // strcpy(ls_copy, ls_colors);
@@ -152,12 +151,12 @@ void print_colorized(const char *name, struct stat f_stat)
     char *token = strtok_r(ls_copy, ":", &ls_copy); // Split each file_type=color1;color2;...:
     while (token != NULL)
     {
-        char *key = strtok(token, "="); // File_type
+        char *key = strtok(token, "=");  // File_type
         char *value = strtok(NULL, "="); // Colors
         // printf("\ntoken: %s;\tkey-value: %s-%s\n", token, key, value);
         if (strcmp(file_type, key) == 0)
         {
-            // \033[ %s m %s \033[ 0 m \n  
+            // \033[ %s m %s \033[ 0 m \n
             printf("\033[%sm%s\033[0m\n", value, name);
             return;
         }
@@ -166,4 +165,25 @@ void print_colorized(const char *name, struct stat f_stat)
     }
 
     printf("%s\n", name);
+}
+
+void print_help()
+{
+    printf("usage: tree [-adfgprstuD] [-L level [-R]]");
+    printf(" [--inodes]\n[--dirsfirst] [--help]\n[--] [directory ...]\n");
+    printf("  ------- Listing options -------\n  -a            All files ");
+    printf("are listed.\n  -d            List directories only.\n  -f    ");
+    printf("        Print the full path prefix for each file.\n  -L level");
+    printf("      Descend only level directories deep.\n  ------- File options -------\n");
+    printf("  -p            Print the protections for each file.\n  -u");
+    printf("            Displays file owner or UID number.\n  -g");
+    printf("            Displays file group owner or GID number.\n  -s");
+    printf("            Print the size in bytes of each file.\n  -D");
+    printf("            Print the date of last modification or status change");
+    printf(".\n  --inodes      Print inode number of each file.\n  ------- Sorting options -------\n");
+    printf("  -t            Sort files by last modification time.\n  -r");
+    printf("            Reverse the order of the sort.\n  --dirsfirst");
+    printf("   List directories before files.\n  ------- Miscellaneous options -------\n  --help");
+    printf("        Print usage and this help message and exit.\n  --");
+    printf("            Options processing terminator.\n");
 }

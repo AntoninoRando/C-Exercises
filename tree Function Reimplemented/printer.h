@@ -23,3 +23,5 @@ void _print_file_mode(struct stat f_stat);
 void print_args(unsigned short arg_mask, struct stat f_stat);
 
 void print_colorized(const char *name, struct stat f_stat);
+
+void print_help();
