@@ -6,7 +6,7 @@
 #include <time.h>
 #include "walker.h"
 #include "printer.c"
-#include "sorters.c"
+#include "sorter.c"
 
 // LE FUNZIONI STATIC NON DOVREBBERO ESSERE VISIBILI ANCHE ALL'ESTERNO.
 // Uso const davanti al parametro perche' e' un riferimento ma la funzione non deve modificare il valore.

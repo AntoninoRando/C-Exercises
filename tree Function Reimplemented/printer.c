@@ -20,15 +20,6 @@ void _print_file_mode(struct stat f_stat)
 
 static void _print_name(int level, char *name, unsigned int level_mask, unsigned short arg_mask, struct stat f_stat)
 {
-    /* La level_mask indica quali livelli hanno raggiunto la fine della dir.
-    La level_mask non e' globale, ma e' associata ad un singolo file; cosi'
-    che quando se la passa nelle cartelle ricorsive, si tiene il valore di prima, ma quando
-    ritorna dalla ricorsione, resetta i livelli. Se lo passassi ogni volta per riferimento,
-    quando un livello raggiunge la fine sopra, poi dovrei reimpostarlo per un livello ricorsivo
-    che riraggiunge la fine sotto.
-    Per farla breve: manitene le modifiche all'andata della ricorsione, non le mantiene al ritorno.
-    */
-
     for (int i = 0; i < level; i++)
     {
         printf("%s   ", level_mask >> i & 1 ? " " : "│");
@@ -37,7 +28,6 @@ static void _print_name(int level, char *name, unsigned int level_mask, unsigned
     printf("%s── ", level_mask >> level & 1 ? "└" : "├");
     print_args(arg_mask, f_stat);
     print_colorized(name, f_stat);
-    // printf("%s\n", name);
 
     /* Se non scrivo sul terminale di vs code "chcp 65001" non visualizza questi chars
     printf("\u251C\u2500\u2500\u2500");  Stampa "├──"
@@ -81,7 +71,7 @@ void print_args(unsigned short arg_mask, struct stat f_stat)
     if (arg_mask >> 8 & 1) // -u
     {
         struct passwd *pw = getpwuid(f_stat.st_uid);
-        if (pw == 0)
+        if (pw == NULL)
         {
             printf("UID %i", f_stat.st_uid);
         }
@@ -95,7 +85,7 @@ void print_args(unsigned short arg_mask, struct stat f_stat)
     if (arg_mask >> 9 & 1) // -g
     {
         struct group *gr = getgrgid(f_stat.st_gid);
-        if (gr == 0)
+        if (gr == NULL)
         {
             printf("GID %i", f_stat.st_gid);
         }

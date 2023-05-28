@@ -4,13 +4,13 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
-#include "sorters.h"
+#include <ctype.h>
+#include "sorter.h"
 
 typedef struct file_node // NON SO PERCHE' MA SE NON SCRIVO QUI FILE_NODE MI DA ERRORE
 {
     char *name;
     char *dir_full_path;
-    time_t date;
     struct stat stat;
     struct file_node *next;
     struct file_node *prev;
@@ -19,8 +19,7 @@ typedef struct file_node // NON SO PERCHE' MA SE NON SCRIVO QUI FILE_NODE MI DA 
 static char *_get_full_path(const char *path, const char *f_name)
 {
     char *full_path;
-    full_path = (char *)malloc(strlen(path) + strlen(f_name) + 2);
-    // quell'2 e' per la stringa '/' ed il null terminator '/0
+    full_path = (char *)malloc(strlen(path) + strlen(f_name) + 2); // strlen of full_path + strlen of f_name + '/' + '\0'
     strcpy(full_path, path);
     strcat(full_path, "/");
     strcat(full_path, f_name);
@@ -35,7 +34,7 @@ int fill_list(struct file_node **head, const char *path, unsigned short flags)
     {
         printf("%s  [error opening dir]\n", path);
         closedir(dir);
-        return 1; // ATTENZIONE, VA ritornato PURE SULLA RICORSIONE
+        return 1;
     }
 
     struct file_node *tail = NULL;
@@ -43,14 +42,17 @@ int fill_list(struct file_node **head, const char *path, unsigned short flags)
 
     while ((ent = readdir(dir)) != NULL)
     {
-        if (strcmp(".", ent->d_name) == 0 || strcmp("..", ent->d_name) == 0)
+        if (strcmp(".", ent->d_name) == 0 || strcmp("..", ent->d_name) == 0) // Skip this and previous dir.
+        {
             continue;
+        }
 
-        if (ent->d_name[0] == '.' && !(flags >> 3 & 1)) // Privata e non -a.
+        if (ent->d_name[0] == '.' && !(flags >> 3 & 1)) // Skip private files if -a is not set.
+        {
             continue;
+        }
 
         char *full_path = _get_full_path(path, ent->d_name);
-
         struct stat f_stat;
 
         if (stat(full_path, &f_stat) != 0)
@@ -60,19 +62,26 @@ int fill_list(struct file_node **head, const char *path, unsigned short flags)
             return 1;
         }
 
-        if (!S_ISDIR(f_stat.st_mode) && flags >> 4 & 1) // Non dir e -d.
+        if (!S_ISDIR(f_stat.st_mode) && flags >> 4 & 1) // Skip if not a dir and -d is set.
         {
             continue;
         }
 
         char *name_copy = malloc(strlen(full_path) + 1);
-        strcpy(name_copy, flags >> 5 & 1 ? full_path : ent->d_name); // Se -f il nome sara' il full path.
-
+        strcpy(name_copy, flags >> 5 & 1 ? full_path : ent->d_name); // If -f is set, the name is the full_path.
         struct file_node *this_node = malloc(sizeof(file_node));
         this_node->name = name_copy;
         this_node->stat = f_stat;
-        this_node->date = f_stat.st_mtime;
-        this_node->dir_full_path = S_ISDIR(f_stat.st_mode) ? full_path : NULL; // DUBBIO: free(full_path) se non dir?
+
+        if (S_ISDIR(f_stat.st_mode))
+        {
+            this_node->dir_full_path = full_path;
+        }
+        else
+        {
+            this_node->dir_full_path = NULL;
+            free(full_path);
+        }
 
         _insert(head, &tail, this_node, flags);
     }
@@ -98,17 +107,19 @@ static void _insert(struct file_node **head, struct file_node **tail, struct fil
     node->next = NULL;
     node->prev = *tail;
 
-    int tail_remains = 0;
+    int tail_remains = 0; // Does the tail remains the same or does it changes?
 
-    if (_is_position_ok(node, flags) == 0)
+    if (_check_position(node, flags) == 0)
     {
         _move_up(node);
-        tail_remains = 1;
+        tail_remains = 1; // As soon as the last node move up, the old tail come back.
     }
-    while (_is_position_ok(node, flags) == 0)
+    while (_check_position(node, flags) == 0)
     {
         _move_up(node);
     }
+
+    // Change the head and the tail if needed.
     if (node->prev == NULL)
     {
         *head = node;
@@ -146,86 +157,47 @@ static void _move_up(struct file_node *node)
     {
         next->prev = prev;
     }
-
-    // free VA FATTO?
 }
 
-// Controlla se node (non NULL) e' in una posizione VALIDA per --dirsfirst
-static int _respect_dirsfirst(struct file_node *node)
+static int _check_position(struct file_node *node, unsigned short flags)
 {
-    // Primo nodo: va bene
+    // First node: ok
     if (node->prev == NULL)
     {
         return 1;
     }
 
-    // E' una dir ma quello prima no: non va bene, deve salire.
-    if (node->dir_full_path != NULL && node->prev->dir_full_path == NULL)
+    if (flags >> 2 & 1) // --dirsfirst
     {
-        return 0;
-    }
-
-    // Non dir ma quello prima si': va bene ma non puo' salire
-    if (node->dir_full_path == NULL && node->prev->dir_full_path != NULL)
-    {
-        return -1;
-    }
-
-    // Casi rimanenti: 1) entrambi dir 2) entrambi non dir.
-    return 1;
-}
-
-static int _respect_r(struct file_node *node)
-{
-    // Primo nodo: va bene
-    if (node->prev == NULL)
-    {
-        return 1;
-    }
-
-    return strcasecmp(node->name, node->prev->name) < 0 ? 1 : 0;
-}
-
-static int _respect_t(struct file_node *node)
-{
-    // Primo nodo: va bene
-    if (node->prev == NULL)
-    {
-        return 1;
-    }
-
-    return node->date > node->prev->date;
-}
-
-static int _is_position_ok(struct file_node *node, unsigned short flags)
-{
-    if (flags >> 2 & 1)
-    {
-        int dirsfirst = _respect_dirsfirst(node);
-        if (dirsfirst == 0)
+        // node is dir BUT node->prev isn't: not ok
+        if (node->dir_full_path != NULL && node->prev->dir_full_path == NULL)
         {
             return 0;
         }
-        if (dirsfirst == -1)
+        // node is not dir BUT node->prev is: ok BUT it cannot move, thus the sorting end.
+        if (node->dir_full_path == NULL && node->prev->dir_full_path != NULL)
         {
             return 1;
         }
+        // Remaining cases: 1) both dir 2) both non-dir. PARITY, the sorting continues.
     }
 
-    if (flags >> 11 & 1)
+    if (flags >> 12) // -t
     {
-        return _respect_r(node);
+        // node->prev is younger: not ok
+        if (node->stat.st_mtime > node->prev->stat.st_mtime)
+        {
+            return 0;
+        }
+        // node->prev is older: ok
+        if (node->stat.st_mtime < node->prev->stat.st_mtime)
+        {
+            return 1;
+        }
+        // Remaining cases: same time. PARITY, the sorting continues.
     }
 
-    if (flags >> 12)
-    {
-        return _respect_t(node);
-    }
-    // Di base e' in ordine alfabetico
-    else
-    {
-        return node->prev == NULL ? 1 : (strcasecmp(node->name, node->prev->name) > 0 ? 1 : 0);
-    }
-
-    return 1;
+    // -r
+    int alphabetical = strcasecmp(node->prev->name, node->name);
+    return flags >> 11 & 1 ? alphabetical > 0 : alphabetical < 0;
 }

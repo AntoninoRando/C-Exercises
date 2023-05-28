@@ -1,10 +1,5 @@
 #include <sys/stat.h>
 
-/***********
- * Prototipo delle Funzioni
- ***********/
-// NON HO CAPITO A COSA SERVE DICHIARARE IL PROTOTIPO... uso i nomi anche qui per la documentation.
-
 /**
  * @brief Prints the file name, in the right level, along with its info.
  *
@@ -18,10 +13,31 @@
  */
 static void _print_name(int level, char *name, unsigned int level_mask, unsigned short arg_mask, struct stat f_stat);
 
+/**
+ * @brief Prints the file mode in the tree-function format.
+ *
+ * @param f_stat The file info.
+ */
 void _print_file_mode(struct stat f_stat);
 
+/**
+ * @brief If optional arguments were given, print the square brackets and the additional file-info the user requested.
+ *
+ * @param arg_mask Which arguments were given.
+ * @param f_stat The file info.
+ */
 void print_args(unsigned short arg_mask, struct stat f_stat);
 
+/**
+ * @brief Prints the file name. If the LS_COLORS is set, the file is also colored.
+ * 
+ * @param name 
+ * @param f_stat 
+ */
 void print_colorized(const char *name, struct stat f_stat);
 
+/**
+ * @brief Prints the documentation requested with --help.
+ * 
+ */
 void print_help();
