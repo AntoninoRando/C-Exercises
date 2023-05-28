@@ -17,4 +17,9 @@
  * @return 0 if no errors occurred, 1 otherwise.
  */
 static void _print_name(int level, char *name, unsigned int level_mask, unsigned short arg_mask, struct stat f_stat);
-void _print_file_mode(struct stat fileStat);
+
+void _print_file_mode(struct stat f_stat);
+
+void print_args(unsigned short arg_mask, struct stat f_stat);
+
+void print_colorized(const char *name, struct stat f_stat);

@@ -1,4 +1,8 @@
 
+/**
+ * @brief A node, that is a file or a directory, of a linked list.
+ * 
+ */
 typedef struct file_node file_node;
 
 int fill_list(struct file_node **head, const char *path, unsigned short flags);
