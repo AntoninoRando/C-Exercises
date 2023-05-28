@@ -40,3 +40,10 @@ I didn't implement all file types yet.
 At first, the function walks through a directory and makes a double-linked-list out of it. A node of the list is a custom-struct called `file_node` and it represents a file. Every node is inserted at the bottom and is raised up until its position respect all sorting parameters (`-r`, `-t`, `--dirsfirst` and default).
 
 I've notice that `tree` functions sorts alphabetically by default and it is case _in_-sensitive. Moreover, some non-letterals characters, when they compare at the beginning of the string, are ignored while others are not. I tried to understand which comparing method the tree function uses and I made my researches but I found nothing, thus I used the standard comparison method. I used the `strcasecmp` instead of `strcmp` to keep the case insensitive at least.
+
+# Miscellaneous
+When the args are parsed, every time a directory is encountered it is moved on the top of the argv vectors, so that:
+
+- the first time we iterate through the argv we can detect how many directories has been given and bring them all way up to the vector start;
+
+- the second time we iterate only on the upper portion of the array.
