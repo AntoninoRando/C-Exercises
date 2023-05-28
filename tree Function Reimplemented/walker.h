@@ -33,8 +33,9 @@ static int _treeR(int level, const char *path, int *dir_count, int *file_count, 
  * @param argc The numbers of args passed.
  * @param argv The actual arg vector.
  * @param arg_mask The arg mask to fill.
- * @param path The path on which the tree function will be called.
+ * @param paths The paths on which the tree function will be called.
  * @param max_level The max level of depth established by -L parameter.
+ * @param paths_num Number of paths encountered.
  * @return 1 if the args were passed wrong, 0 otherwise.  
  */
-static int _pars_argv(int argc, char **argv, unsigned short *arg_mask, char *path, int *max_level, int *paths_num);
+static int _pars_argv(int argc, char **argv, unsigned short *arg_mask, char ***paths, int *max_level, int *paths_num);

@@ -11,11 +11,11 @@
 int tree(int argc, char **argv)
 {
     // The max file length in linux is 255 (256 = 255 + 1 for the string terminator).
-    char path[256];
+    char **paths;
     int dir_count = 0, file_count = 0, max_level = 0, paths_num = 0;
     unsigned short arg_mask = 0b0;
 
-    if (_pars_argv(argc, argv, &arg_mask, path, &max_level, &paths_num) == 1)
+    if (_pars_argv(argc, argv, &arg_mask, &paths, &max_level, &paths_num) == 1)
     {
         print_help(); // Print help if args were wrong.
         return 1;
@@ -27,18 +27,23 @@ int tree(int argc, char **argv)
         return 0;
     }
 
-    struct stat f_stat;
-    if (stat(path, &f_stat) != 0)
+    for (int i = 0; i < paths_num; i++)
     {
-        printf("%s  [error opening dir]\n", path);
-        return 1;
+        struct stat f_stat;
+        if (stat(paths[i], &f_stat) != 0)
+        {
+            printf("%s  [error opening dir]\n", paths[i]);
+            return 1;
+        }
+
+        // Print the starting directory.
+        print_args(arg_mask, f_stat);
+        print_colorized(paths[i], f_stat);
+
+        _treeR(0, paths[i], &dir_count, &file_count, arg_mask, 0b0, max_level);
+        free(paths[i]);
     }
-
-    // Print the starting directory.
-    print_args(arg_mask, f_stat);
-    print_colorized(path, f_stat);
-
-    _treeR(0, path, &dir_count, &file_count, arg_mask, 0b0, max_level);
+    free(paths);
 
     // Print the toal number of directories and files.
     if (dir_count > 0)
@@ -97,8 +102,9 @@ static int _treeR(int level, const char *path, int *dir_count, int *file_count, 
     return 0;
 }
 
-static int _pars_argv(int argc, char **argv, unsigned short *arg_mask, char *path, int *max_level, int *paths_num)
+static int _pars_argv(int argc, char **argv, unsigned short *arg_mask, char ***paths, int *max_level, int *paths_num)
 {
+    int last_path = 0;
 
     for (int i = 1; i < argc; i++)
     {
@@ -133,8 +139,8 @@ static int _pars_argv(int argc, char **argv, unsigned short *arg_mask, char *pat
             {
                 return 0;
             }
-
-            strcpy(path, argv[i]);
+            argv[last_path] = argv[i];
+            last_path++;
             continue;
         }
 
@@ -147,7 +153,8 @@ static int _pars_argv(int argc, char **argv, unsigned short *arg_mask, char *pat
         // No line = path
         if (lines == 0)
         {
-            strcpy(path, argv[i]);
+            argv[last_path] = argv[i];
+            last_path++;
         }
         else if (lines == 1) // Single arg.
         {
@@ -193,6 +200,23 @@ static int _pars_argv(int argc, char **argv, unsigned short *arg_mask, char *pat
             return 1;
         }
     }
+    
+    *paths_num = last_path > 0 ? last_path : 1;
 
+    // User gave no path, so use '.' by default
+    (*paths) = malloc(*paths_num * sizeof(char *));
+
+    if (last_path == 0)
+    {
+        (*paths)[0] = malloc(2);
+        strcpy((*paths)[0], ".");
+        return 0;
+    }
+
+    for (int i = 0; i < last_path; i++)
+    {
+        (*paths)[i] = malloc(strlen(argv[i]) + 1);
+        strcpy((*paths)[i], argv[i]);
+    }
     return 0;
 }
