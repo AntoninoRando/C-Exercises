@@ -184,13 +184,13 @@ static int _check_position(struct file_node *node, unsigned short flags)
 
     if (flags >> 12) // -t
     {
-        // node->prev is younger: not ok
-        if (node->stat.st_mtime > node->prev->stat.st_mtime)
+        // node->prev is older: not ok
+        if (node->stat.st_mtime < node->prev->stat.st_mtime)
         {
             return 0;
         }
-        // node->prev is older: ok
-        if (node->stat.st_mtime < node->prev->stat.st_mtime)
+        // node->prev is younger: ok
+        if (node->stat.st_mtime > node->prev->stat.st_mtime)
         {
             return 1;
         }
