@@ -29,7 +29,7 @@ The program does not print one string all in once, it instead print several piec
 
 4. The closing braket ']' is printed.
 
-This choice requires not to create a lot of strings as they will be printed right on-the-go.
+This choice requires not to create a lot of strings as they will be printed right on-the-go. I could have used an array of pointers to functions to avoid repeating checks, but, as I don't see that being doing much around the web, I prefered to maintain the old-fashioned if-else solution.
 
 ### LS_COLORS
 I read in the documentation that `tree` colors files using the `LS_COLORS` environment variable. I tried to understand how it worked and I understood the following: _you can write that varible in the format `file_type=terminal_color_format: ...others`_. So I parsed that variable with this convinction. I have to implement a dictionary, but I had no time so I execute the parsing every time.

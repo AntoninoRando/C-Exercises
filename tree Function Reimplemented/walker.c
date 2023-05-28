@@ -8,7 +8,52 @@
 #include "printer.c"
 #include "sorter.c"
 
-static int _treeR(int level, const char *path, int *dir_count, int *file_count, unsigned short flags, unsigned int level_mask, int max_level)
+int tree(int argc, char **argv)
+{
+    // The max file length in linux is 255 (256 = 255 + 1 for the string terminator).
+    char path[256];
+    int dir_count = 0, file_count = 0, max_level = 0, paths_num = 0;
+    unsigned short arg_mask = 0b0;
+
+    if (_pars_argv(argc, argv, &arg_mask, path, &max_level, &paths_num) == 1)
+    {
+        print_help(); // Print help if args were wrong.
+        return 1;
+    }
+
+    if (arg_mask >> 0 & 1) // --help
+    {
+        print_help();
+        return 0;
+    }
+
+    struct stat f_stat;
+    if (stat(path, &f_stat) != 0)
+    {
+        printf("%s  [error opening dir]\n", path);
+        return 1;
+    }
+
+    // Print the starting directory.
+    print_args(arg_mask, f_stat);
+    print_colorized(path, f_stat);
+
+    _treeR(0, path, &dir_count, &file_count, arg_mask, 0b0, max_level);
+
+    // Print the toal number of directories and files.
+    if (dir_count > 0)
+    {
+        printf("\n%d directories%s", dir_count, file_count > 0 ? ", " : "\n");
+    }
+    if (file_count > 0)
+    {
+        printf("%d files\n", file_count);
+    }
+
+    return 0;
+}
+
+static int _treeR(int level, const char *path, int *dir_count, int *file_count, unsigned short flags, unsigned int arg_mask, int max_level)
 {
     struct file_node *head = NULL;
 
@@ -20,19 +65,21 @@ static int _treeR(int level, const char *path, int *dir_count, int *file_count, 
 
     while (head != NULL)
     {
+        // If this levels has come to an end.
         if (head->next == NULL)
         {
-            level_mask |= (1 << level);
+            arg_mask |= (1 << level);
         }
 
-        print_name(level, head->name, level_mask, flags, head->stat);
+        print_name(level, head->name, arg_mask, flags, head->stat);
 
+        // If the file is a dir.
         if (head->dir_full_path != NULL)
         {
             (*dir_count)++;
-            if (max_level == 0 || level + 1 < max_level) // Quando c'e' -L.
+            if (max_level == 0 || level + 1 < max_level) // -L
             {
-                _treeR(level + 1, head->dir_full_path, dir_count, file_count, flags, level_mask, max_level);
+                _treeR(level + 1, head->dir_full_path, dir_count, file_count, flags, arg_mask, max_level);
             }
         }
         else
@@ -45,46 +92,64 @@ static int _treeR(int level, const char *path, int *dir_count, int *file_count, 
         free(old_head);
     }
 
+    free(head);
+
     return 0;
 }
 
-int _pars_argv(int argc, char **argv, unsigned short *flags, char *path, int *max_level)
+static int _pars_argv(int argc, char **argv, unsigned short *arg_mask, char *path, int *max_level, int *paths_num)
 {
-    // Parsing arguments
-    int path_priority = 0;
+
     for (int i = 1; i < argc; i++)
     {
         if (strcmp(argv[i], "--help") == 0)
         {
-            *(flags) |= 1 << 0;
-            return 0; // Se c'e' help gli altri argomenti sono inutili.
+            *(arg_mask) |= 1 << 0;
+            return 0; // If --help, other args are useless.
         }
         else if (strcmp(argv[i], "--inodes") == 0)
         {
-            *(flags) |= 1 << 1;
+            *(arg_mask) |= 1 << 1;
             continue;
         }
         else if (strcmp(argv[i], "--dirsfirst") == 0)
         {
-            *(flags) |= 1 << 2;
+            *(arg_mask) |= 1 << 2;
             continue;
         }
-        else if (strcmp(argv[i], "--") == 0) // l'argomento era proprio --, quindi l'argomento dopo è un path
+        else if (strcmp(argv[i], "--") == 0) // The following argument has to be a path...
         {
-            if (i + 1 == argc) // se e' stato passato "--" come ultimo argomento...
-                return 0;      // ... ignora e finisci qui, visto che abbiamo finito gli argomenti...
+            // No other args, that is no path specified.
+            if (i + 1 == argc)
+            {
+                continue;
+            }
+
+            // Get the following path.
             i++;
-            strcpy(path, argv[i]); // ... altrimenti quello che viene dopo e' un path.
+
+            // If the file length exceed the limit, ignore it.
+            if (strlen(argv[i]) > 255)
+            {
+                return 0;
+            }
+
+            strcpy(path, argv[i]);
             continue;
         }
 
-        int lines = 0;                // numero di trattini iniziali
+        int lines = 0;
         while (argv[i][lines] == '-') // se e' finita la stringa incontra '\0' che e' diverso da '-' e termina il cilo.
+        {
             lines++;
+        }
 
-        if (lines == 0) // e' un path quello che e' stato passato
+        // No line = path
+        if (lines == 0)
+        {
             strcpy(path, argv[i]);
-        else if (lines == 1) // e' un argomento, o singolo o su piu' righe
+        }
+        else if (lines == 1) // Single arg.
         {
             int c, j = i;
             for (int c = 1; c < strlen(argv[j]); c++)
@@ -97,7 +162,7 @@ int _pars_argv(int argc, char **argv, unsigned short *flags, char *path, int *ma
                         return 1;
                     }
                     i++;
-                    int level = atoi(argv[i]); // Se non si puo' convertire ritorna 0.
+                    int level = atoi(argv[i]); // Se non si puo' convertire ritorna 0, che comunque non va bene.
                     if (level < 1)
                     {
                         printf("tree: Invalid level, must be greater than 0.\n");
@@ -112,7 +177,7 @@ int _pars_argv(int argc, char **argv, unsigned short *flags, char *path, int *ma
                 {
                     if (argv[j][c] != "adfpsugDrt"[c2])
                         continue;
-                    *(flags) |= 1 << (c2 + 3); // i primi 3 sono help, inodes e dirsfirst
+                    *(arg_mask) |= 1 << (c2 + 3); // i primi 3 sono help, inodes e dirsfirst
                     break;
                 }
                 if (c2 == 11) // Se avesse trovato un argomento valido il ciclo sarebbe finito con un break (prima di c2 = 11)
@@ -122,46 +187,12 @@ int _pars_argv(int argc, char **argv, unsigned short *flags, char *path, int *ma
                 }
             }
         }
-        else // siccome gli argomenti con piu' lines li abbiamo gia' controllati, questo che ne ha almeno 2 deve essere invalido.
+        else // Since we've alreay check arguments with 2 lines, this must be a wrong argument.
         {
             printf("tree: Invalid argument \'%s\'.\n", argv[i]);
             return 1;
         }
     }
+
     return 0;
-}
-
-int tree(int argc, char **argv)
-{
-    // In linux la massima lunghezza di un file dovrebbe essere 255 byte.
-    // l'array e' di 256 considerando il char finale (credo, ma in struct dirent il nome e'
-    // un array di 256 quindi pure io ho fatto cosi').
-    char starting_path[256] = "."; // Di base e' questa directory, ma quando parsa gli argv potrebbe cambiare
-    int dir_count = 0, file_count = 0;
-    // NON SONO SICURO SE VADA USATO UN UNSIGNED SHORT
-    unsigned short arg_mask = 0b0; // 16 bit: --help --inodes --dirsfirst -adfpsugDrt. l'-L bit non ci interessa perche' quello se e' stato dato si riconosce dal valore di max_level.
-    int max_level = 0;
-    if (_pars_argv(argc, argv, &arg_mask, starting_path, &max_level) == 1) // Se gli argomenti sono stati passati male.
-        return 1;
-
-    if (arg_mask >> 0 & 1) // --help
-    {
-        print_help();
-        return 0;
-    }
-
-    struct stat f_stat;
-
-    if (stat(starting_path, &f_stat) != 0)
-    {
-        printf("%s  [error opening dir]\n", starting_path);
-        return 1;
-    }
-
-    print_args(arg_mask, f_stat); // printa la directory iniziale su cui si scorre
-    print_colorized(starting_path, f_stat);
-
-    int errOrNot = _treeR(0, starting_path, &dir_count, &file_count, arg_mask, 0b0, max_level);
-    printf("\n%d directories, %d files\n", dir_count, file_count);
-    return errOrNot;
 }

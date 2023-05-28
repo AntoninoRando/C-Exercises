@@ -23,7 +23,6 @@ void print_name(int level, char *name, unsigned int level_mask, unsigned short a
 void print_args(unsigned short arg_mask, struct stat f_stat)
 {
     int brakets = (arg_mask >> 1 & 1) + (arg_mask >> 6 & 1) + (arg_mask >> 7 & 1) + (arg_mask >> 8 & 1) + (arg_mask >> 9 & 1) + (arg_mask >> 10 & 1);
-    int brakets_unmodified = brakets;
 
     if (brakets > 0)
     {
@@ -32,13 +31,13 @@ void print_args(unsigned short arg_mask, struct stat f_stat)
 
     if (arg_mask >> 1 & 1) // --inodes
     {
-        printf("%lu%s", f_stat.st_ino, brakets > 1 ? " " : "");
+        printf("%lu%s", f_stat.st_ino, brakets > 1 ? " " : "] ");
         brakets--;
     }
     if (arg_mask >> 6 & 1) // -p
     {
         _print_file_mode(f_stat);
-        printf("%s", brakets > 1 ? " " : "");
+        printf("%s", brakets > 1 ? " " : "] ");
         brakets--;
     }
     if (arg_mask >> 7 & 1) // -s
@@ -50,7 +49,7 @@ void print_args(unsigned short arg_mask, struct stat f_stat)
         {
             full_size[10 - i] = size[i]; // La fine e' \0, quindi non va toccata
         }
-        printf("%s%s", full_size, brakets > 1 ? " " : ""); // If there are other args to print, leave a space.
+        printf("%s%s", full_size, brakets > 1 ? " " : "] "); // If there are other args to print, leave a space.
         brakets--;
     }
     if (arg_mask >> 8 & 1) // -u
@@ -64,7 +63,7 @@ void print_args(unsigned short arg_mask, struct stat f_stat)
         {
             printf("%s", pw->pw_name);
         }
-        printf("%s", brakets > 1 ? " " : "");
+        printf("%s", brakets > 1 ? " " : "] ");
         brakets--;
     }
     if (arg_mask >> 9 & 1) // -g
@@ -78,20 +77,15 @@ void print_args(unsigned short arg_mask, struct stat f_stat)
         {
             printf("%s", gr->gr_name);
         }
-        printf("%s", brakets > 1 ? " " : "");
+        printf("%s", brakets > 1 ? " " : "] ");
         brakets--;
     }
     if (arg_mask >> 10 & 1) // -D
     {
         char date[20];
         strftime(date, sizeof(date), "%B %d %H:%M", localtime(&(f_stat.st_mtime)));
-        printf("%s%s", date, brakets > 1 ? " " : "");
+        printf("%s%s", date, brakets > 1 ? " " : "] ");
         brakets--;
-    }
-
-    if (brakets_unmodified > 0)
-    {
-        printf("] ");
     }
 }
 
@@ -99,21 +93,22 @@ void print_colorized(const char *name, struct stat f_stat)
 {
     char *ls_colors = getenv("LS_COLORS");
 
+    // If LS_COLORS is not set, print in the standard format.
     if (ls_colors == NULL)
     {
         printf("%s\n", name);
         return;
     }
 
-    // Determina il tipo di file
+    // Convert from file-type to LS_COLOR label.
     char file_type[3];
     unsigned int mode = f_stat.st_mode;
     if (S_ISREG(mode))
-        strcpy(file_type, "fi"); // File regolare
+        strcpy(file_type, "fi"); // Regular File
     else if (S_ISDIR(mode))
         strcpy(file_type, "di"); // Directory
     else if (S_ISLNK(mode))
-        strcpy(file_type, "ln"); // Link simbolico
+        strcpy(file_type, "ln"); // Symbolic Link
     else if (S_ISFIFO(mode))
         strcpy(file_type, "pi"); // FIFO
     // TODO AGGIUNGERE ALTRI TIPI
