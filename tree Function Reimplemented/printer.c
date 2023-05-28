@@ -3,22 +3,7 @@
 #include <grp.h>
 #include "printer.h"
 
-void _print_file_mode(struct stat f_stat)
-{
-    unsigned int mode = f_stat.st_mode;
-    printf(S_ISDIR(mode) ? "d" : "-");
-    printf(mode & S_IRUSR ? "r" : "-");
-    printf(mode & S_IWUSR ? "w" : "-");
-    printf(mode & S_IXUSR ? "x" : "-");
-    printf(mode & S_IRGRP ? "r" : "-");
-    printf(mode & S_IWGRP ? "w" : "-");
-    printf(mode & S_IXGRP ? "x" : "-");
-    printf(mode & S_IROTH ? "r" : "-");
-    printf(mode & S_IWOTH ? "w" : "-");
-    printf(mode & S_IXOTH ? "x" : "-");
-}
-
-static void _print_name(int level, char *name, unsigned int level_mask, unsigned short arg_mask, struct stat f_stat)
+void print_name(int level, char *name, unsigned int level_mask, unsigned short arg_mask, struct stat f_stat)
 {
     for (int i = 0; i < level; i++)
     {
@@ -29,7 +14,7 @@ static void _print_name(int level, char *name, unsigned int level_mask, unsigned
     print_args(arg_mask, f_stat);
     print_colorized(name, f_stat);
 
-    /* Se non scrivo sul terminale di vs code "chcp 65001" non visualizza questi chars
+    /* Use"chcp 65001" on VS Code terminal to visualize these chars.
     printf("\u251C\u2500\u2500\u2500");  Stampa "├──"
     printf("\u2502");                    Stampa "│"
     printf("\u2514\u2500\u2500\u2500");  Stampa "└──" */
@@ -65,13 +50,13 @@ void print_args(unsigned short arg_mask, struct stat f_stat)
         {
             full_size[10 - i] = size[i]; // La fine e' \0, quindi non va toccata
         }
-        printf("%s%s", full_size, brakets > 1 ? " " : "");
+        printf("%s%s", full_size, brakets > 1 ? " " : ""); // If there are other args to print, leave a space.
         brakets--;
     }
     if (arg_mask >> 8 & 1) // -u
     {
         struct passwd *pw = getpwuid(f_stat.st_uid);
-        if (pw == NULL)
+        if (pw == NULL) // No username available.
         {
             printf("UID %i", f_stat.st_uid);
         }
@@ -99,7 +84,7 @@ void print_args(unsigned short arg_mask, struct stat f_stat)
     if (arg_mask >> 10 & 1) // -D
     {
         char date[20];
-        strftime(date, sizeof(date), "%d-%m-%y", localtime(&(f_stat.st_mtime)));
+        strftime(date, sizeof(date), "%B %d %H:%M", localtime(&(f_stat.st_mtime)));
         printf("%s%s", date, brakets > 1 ? " " : "");
         brakets--;
     }
@@ -155,6 +140,21 @@ void print_colorized(const char *name, struct stat f_stat)
     }
 
     printf("%s\n", name);
+}
+
+static void _print_file_mode(struct stat f_stat)
+{
+    unsigned int mode = f_stat.st_mode;
+    printf(S_ISDIR(mode) ? "d" : "-");
+    printf(mode & S_IRUSR ? "r" : "-");
+    printf(mode & S_IWUSR ? "w" : "-");
+    printf(mode & S_IXUSR ? "x" : "-");
+    printf(mode & S_IRGRP ? "r" : "-");
+    printf(mode & S_IWGRP ? "w" : "-");
+    printf(mode & S_IXGRP ? "x" : "-");
+    printf(mode & S_IROTH ? "r" : "-");
+    printf(mode & S_IWOTH ? "w" : "-");
+    printf(mode & S_IXOTH ? "x" : "-");
 }
 
 void print_help()

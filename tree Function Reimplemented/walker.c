@@ -8,8 +8,6 @@
 #include "printer.c"
 #include "sorter.c"
 
-// LE FUNZIONI STATIC NON DOVREBBERO ESSERE VISIBILI ANCHE ALL'ESTERNO.
-// Uso const davanti al parametro perche' e' un riferimento ma la funzione non deve modificare il valore.
 static int _treeR(int level, const char *path, int *dir_count, int *file_count, unsigned short flags, unsigned int level_mask, int max_level)
 {
     struct file_node *head = NULL;
@@ -27,7 +25,7 @@ static int _treeR(int level, const char *path, int *dir_count, int *file_count, 
             level_mask |= (1 << level);
         }
 
-        _print_name(level, head->name, level_mask, flags, head->stat);
+        print_name(level, head->name, level_mask, flags, head->stat);
 
         if (head->dir_full_path != NULL)
         {
