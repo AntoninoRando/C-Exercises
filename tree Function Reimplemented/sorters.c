@@ -4,7 +4,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
-#include "linkedListUtils.h"
+#include "sorters.h"
 
 typedef struct file_node // NON SO PERCHE' MA SE NON SCRIVO QUI FILE_NODE MI DA ERRORE
 {
@@ -33,7 +33,7 @@ int fill_list(struct file_node **head, const char *path, unsigned short flags)
 
     if ((dir = opendir(path)) == NULL)
     {
-        perror(path);
+        printf("%s  [error opening dir]\n", path);
         closedir(dir);
         return 1; // ATTENZIONE, VA ritornato PURE SULLA RICORSIONE
     }
@@ -55,7 +55,7 @@ int fill_list(struct file_node **head, const char *path, unsigned short flags)
 
         if (stat(full_path, &f_stat) != 0)
         {
-            perror("An error has occurred while trying to read file's informations");
+            printf("%s  [error opening dir]\n", ent->d_name);
             closedir(dir);
             return 1;
         }
@@ -183,7 +183,7 @@ static int _respect_r(struct file_node *node)
         return 1;
     }
 
-    return strcmp(node->name, node->prev->name) < 0 ? 1 : 0;
+    return strcasecmp(node->name, node->prev->name) < 0 ? 1 : 0;
 }
 
 static int _respect_t(struct file_node *node)
@@ -194,7 +194,7 @@ static int _respect_t(struct file_node *node)
         return 1;
     }
 
-    return node->date < node->prev->date;
+    return node->date > node->prev->date;
 }
 
 static int _is_position_ok(struct file_node *node, unsigned short flags)
@@ -220,6 +220,11 @@ static int _is_position_ok(struct file_node *node, unsigned short flags)
     if (flags >> 12)
     {
         return _respect_t(node);
+    }
+    // Di base e' in ordine alfabetico
+    else
+    {
+        return node->prev == NULL ? 1 : (strcasecmp(node->name, node->prev->name) > 0 ? 1 : 0);
     }
 
     return 1;

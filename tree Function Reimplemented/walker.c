@@ -6,7 +6,7 @@
 #include <time.h>
 #include "walker.h"
 #include "printer.c"
-#include "linkedListUtils.c"
+#include "sorters.c"
 
 // LE FUNZIONI STATIC NON DOVREBBERO ESSERE VISIBILI ANCHE ALL'ESTERNO.
 // Uso const davanti al parametro perche' e' un riferimento ma la funzione non deve modificare il valore.
@@ -146,10 +146,27 @@ int tree(int argc, char **argv)
     if (_pars_argv(argc, argv, &arg_mask, starting_path, &max_level) == 1) // Se gli argomenti sono stati passati male.
         return 1;
 
-    // Se il comando e' help.
-    if ((arg_mask >> 0) & 1)
+    if (arg_mask >> 0 & 1) // --help
     {
-        printf("Documentazione");
+        // Open file
+        FILE *fptr;
+        fptr = fopen("doc.txt", "r");
+        if (fptr == NULL)
+        {
+            printf("Cannot open file \n");
+            exit(0);
+        }
+
+        // Read contents from file
+        char c = fgetc(fptr);
+        while (c != EOF)
+        {
+            printf("%c", c);
+            c = fgetc(fptr);
+        }
+
+        fclose(fptr);
+        //printf("Documentazione");
         return 0;
     }
 
@@ -157,7 +174,7 @@ int tree(int argc, char **argv)
 
     if (stat(starting_path, &f_stat) != 0)
     {
-        perror("An error has occurred while trying to read file's informations");
+        printf("%s  [error opening dir]\n", starting_path);
         return 1;
     }
 

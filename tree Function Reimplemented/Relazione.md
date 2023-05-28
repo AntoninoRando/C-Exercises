@@ -37,3 +37,6 @@ The program does not print one string all in once, it instead print several piec
 
 ## LS_COLORS
 I read in the documentation that `tree` colors files using the LS_COLORS environment variable. I tried to understand how it worked and I understood the following: _you can write that varible in the format `file_type=terminal_color_format:...`_. So i parsed that variable with this convinction. I have to implement a dictionary, but I had no time so I execute the parsing every time.
+
+# The Sorting-Process
+I've notice that `tree` functions sorts alphabetically by default and it is case _in_-sensitive, thus I used the `strcasecmp` function instead of `strcmp`.

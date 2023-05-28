@@ -83,7 +83,7 @@ void print_args(unsigned short arg_mask, struct stat f_stat)
         struct passwd *pw = getpwuid(f_stat.st_uid);
         if (pw == 0)
         {
-            printf("PID %i", f_stat.st_uid);
+            printf("UID %i", f_stat.st_uid);
         }
         else
         {
