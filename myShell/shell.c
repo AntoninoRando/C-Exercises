@@ -1,30 +1,36 @@
 #include <stdlib.h>
 #include "inputReader.c"
+#include "executer.c"
+#include "shell.h"
+// #include "memory.c"
 
-#define COMMAND_LIMIT 512
-
-int shell()
+int shell_loop()
 {
     int quit = 0;
-    char command[COMMAND_LIMIT];
 
-    int commandCheck = read_line(command, COMMAND_LIMIT);
-
-    if (commandCheck == OVERFLOW)
+    while (quit != 1)
     {
-        printf("shell: too many characters in the input: only %d are allowed\n", COMMAND_LIMIT-2);
-        return 1;
+        char line[INPUT_SIZE];
+
+        int lineCheck = read_line(line, INPUT_SIZE);
+
+        if (lineCheck != OK) // Blank or Overflow
+        {
+            if (lineCheck == OVERFLOW)
+            {
+                printf("shell: too many characters in the input: only %d are allowed\n", INPUT_SIZE - 2);
+            }
+            continue;
+        }
+
+        struct Commands *commands = parse_line(line, &quit);
+        execute_commands(commands);
     }
-
-    system(command);
     return 0;
-}
-
-int check_if_bash(int argc, char **argv) {
-
 }
 
 int main(int argc, char **argv)
 {
-    return shell();
+    // load_shell_chronology();
+    return shell_loop();
 }

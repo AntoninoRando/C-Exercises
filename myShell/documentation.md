@@ -1,3 +1,15 @@
+# Shell Lifecycle
+1. Initialize.
+2. Interpret.
+    1. Read.
+    2. Parse.
+    3. Execute.
+3. Terminate.
+
+# Executing Commands
+1. `fork` syscall: creates a copy of this process;
+2. `exec` syscall: change the copy to be another process.
+
 # Wrong Input
 There are 2 types of wrong input:
 - fixable: the shell ignores the bad input and compiles it;
