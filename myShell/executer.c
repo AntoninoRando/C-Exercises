@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <ctype.h>
 #include "executer.h"
 
 int read_line(char dest[INPUT_SIZE], size_t limit)
@@ -28,33 +29,63 @@ int read_line(char dest[INPUT_SIZE], size_t limit)
     return OK;
 }
 
-void *parse_line(char *input, int *quit)
+void *execute_line(char *input, int *quit)
 {
-    for (char* cmd = strtok(input, ";"); cmd != NULL; cmd = strtok(NULL, ";"))
+    for (char *cmd = strtok(input, ";"); cmd != NULL; cmd = strtok(NULL, ";"))
     {
-        if (strcmp(cmd, "quit") == 0)
+
+        int check = special_check(cmd);
+        if (check != 0) // EMPTY or QUIT
         {
-            *quit = 1;
+            if (check == QUIT)
+            {
+                *quit = 1;
+            }
             continue;
         }
-        char **args = parse_cmd(cmd);
-        execute_cmd(args);
+
+        execute_cmd(cmd);
     }
 }
 
-char **parse_cmd(char *cmd)
+int special_check(char *cmd)
 {
-    char **args = malloc(64 * sizeof(char *)); // TODO: cambiare quel 64 in qualcosa di variabile
-    int i = 0;
-    for (char *tok = strtok(cmd, " \t\r\n\a"); tok != NULL; tok = strtok(NULL, " \t\r\n\a"))
+    int end = strlen(cmd);
+
+    // Trim leading spaces
+    // TODO: questa operazione modifica la stringa, ma non dovrebbe creare
+    // problemi per altri comandi visto che leva solo gli spazi iniziali.
+    while (isspace((unsigned char)*cmd))
     {
-        args[i++] = tok;
+        cmd++;
+        end--;
     }
 
-    return args;
+    // All spaces
+    if (end == 0)
+    {
+        return EMPTY;
+    }
+
+    char quit[] = "quit";
+
+    int i = 0;
+    while (end != 0)
+    {
+        end--;
+        
+        if (cmd[i] != quit[i])
+        {
+            return 0;
+        }
+
+        continue; // TODO: tornare qualcosa che sicuramente non e' ne QUIT ne EMPTY
+    }
+
+    return end == 0 ? QUIT: 0;
 }
 
-static int execute_cmd(char **args)
+static int execute_cmd(char *cmd)
 {
     pid_t pid = fork();
 
@@ -74,7 +105,9 @@ static int execute_cmd(char **args)
     if (pid == 0)
     {
         // Cambio l'immagine al figlio cosi' da eseguire il comando
-        int error = execvp(args[0], args); 
+        int error = execl("/bin/sh", "/bin/sh", "-c", cmd, NULL); // TODO: will this always work?
+        // TODO: sostituire con la versione vecchia execvp(args[0], args) cosi' che implemento
+        // pure il parsing della stringa.
         if (error == -1)
         {
             perror("exec failed");

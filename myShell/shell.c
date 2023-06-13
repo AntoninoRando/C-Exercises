@@ -22,7 +22,7 @@ int shell_loop()
             continue;
         }
 
-        parse_line(line, &quit);
+        execute_line(line, &quit);
         while(wait(NULL) > 0); // Waits for all children process to end.
     }
 

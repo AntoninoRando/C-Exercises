@@ -3,6 +3,9 @@
 #define OK 1
 #define INPUT_SIZE 512
 
+#define EMPTY 2
+#define QUIT 3
+
 
 // TODO: ci dovrebbe essere la funzione di libreria "readline"
 // (https://man7.org/linux/man-pages/man3/readline.3.html)
@@ -10,8 +13,8 @@
 // farte "unminimize" del container.
 int read_line(char dest[INPUT_SIZE], size_t limit); // TODO: ricontrollare se va bene l'array size qui
 
-void *parse_line(char *input, int *quit);
+void *execute_line(char *input, int *quit);
 
-char** parse_cmd(char *cmd);
+int special_check(char* cmd);
 
-static int execute_cmd(char **args);
+static int execute_cmd(char *cmd);
