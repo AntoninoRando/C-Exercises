@@ -1,5 +1,4 @@
 #include <stdlib.h>
-#include "inputReader.c"
 #include "executer.c"
 #include "shell.h"
 // #include "memory.c"
@@ -23,10 +22,11 @@ int shell_loop()
             continue;
         }
 
-        struct Commands *commands = parse_line(line, &quit);
-        execute_commands(commands);
+        parse_line(line, &quit);
+        while(wait(NULL) > 0); // Waits for all children process to end.
     }
-    return 0;
+
+    exit(EXIT_SUCCESS);
 }
 
 int main(int argc, char **argv)
