@@ -44,7 +44,8 @@ void *execute_line(char *input, int *quit)
             continue;
         }
 
-        execute_cmd(cmd);
+        char **args = manual_parse(cmd);
+        execute_cmd(args);
     }
 }
 
@@ -73,7 +74,7 @@ int special_check(char *cmd)
     while (end != 0)
     {
         end--;
-        
+
         if (cmd[i] != quit[i])
         {
             return 0;
@@ -82,10 +83,59 @@ int special_check(char *cmd)
         continue; // TODO: tornare qualcosa che sicuramente non e' ne QUIT ne EMPTY
     }
 
-    return end == 0 ? QUIT: 0;
+    return end == 0 ? QUIT : 0;
 }
 
-static int execute_cmd(char *cmd)
+char **manual_parse(char *cmd)
+{
+    // Trim leading spaces
+    while (isspace((unsigned char)*cmd))
+    {
+        cmd++;
+    }
+
+    // TODO: RICORDA DI FARE FREE OVUNQUE HO SCRITTO MALLOC
+    char **args = malloc(1 * sizeof(char *));
+    char divider = ' '; // TODO: aggiungere altri white-space characters
+    int j = 0, sub_start = 0, sub_len = 0;
+
+    for (int i = 0; i <= strlen(cmd); i++)
+    {
+        char c = cmd[i];
+        sub_len++;
+
+        if (c == divider || i == strlen(cmd)) // Arg ended
+        {
+            // Reset divider if it changed
+            if (divider == '"')
+            {
+                divider = ' ';
+                sub_len--;
+            }
+            
+            args[j] = malloc(sub_len);
+            // TODO: il -1 toglie lo spazio finale
+            memcpy(args[j], &cmd[sub_start], sub_len-1); // ALTERNATIVA: strncpy(arg, cmd+sub_start, sub_len-1);
+            // TODO: il null terminator non dovrebbe servire... (perche' non viene aggiunto)
+            sub_len = 0;
+            sub_start = i + 1;
+            j++;
+            args = realloc(args, (j + 1) * sizeof(char *)); // Make space for new char.
+            continue;
+        }
+
+        if (c == '"') // Encountered an arg beginning with "
+        {
+            divider = '"';
+            sub_start++;
+            continue;
+        }
+    }
+
+    return args;
+}
+
+static int execute_cmd(char **args)
 {
     pid_t pid = fork();
 
@@ -105,9 +155,10 @@ static int execute_cmd(char *cmd)
     if (pid == 0)
     {
         // Cambio l'immagine al figlio cosi' da eseguire il comando
-        int error = execl("/bin/sh", "/bin/sh", "-c", cmd, NULL); // TODO: will this always work?
+        // int error = execl("/bin/sh", "/bin/sh", "-c", cmd, NULL); // TODO: will this always work?
         // TODO: sostituire con la versione vecchia execvp(args[0], args) cosi' che implemento
         // pure il parsing della stringa.
+        int error = execvp(args[0], args);
         if (error == -1)
         {
             perror("exec failed");

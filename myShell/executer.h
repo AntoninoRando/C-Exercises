@@ -17,4 +17,6 @@ void *execute_line(char *input, int *quit);
 
 int special_check(char* cmd);
 
-static int execute_cmd(char *cmd);
+static int execute_cmd(char **args);
+
+char** manual_parse(char* cmd);
