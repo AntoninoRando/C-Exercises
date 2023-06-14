@@ -9,9 +9,6 @@
 
 int read_line(char dest[INPUT_SIZE], size_t limit)
 {
-    // PROMPT
-    printf("(myShell) $ ");
-
     if (fgets(dest, limit, stdin) == NULL)
     {
         return BLANK;

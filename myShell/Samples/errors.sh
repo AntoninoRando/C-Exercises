@@ -1,0 +1,1 @@
+ehco "It's echo not ehco";;;; echo "A lot of ;" tree -l;; quit;; echo "Quit is not needed";;
