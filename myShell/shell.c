@@ -11,7 +11,7 @@ int shell_loop()
         char line[INPUT_SIZE];
 
         // PROMPT
-        printf("(myShell) $ ");
+        printf("%s ", PROMPT);
 
         int lineCheck = read_line(line);
 
@@ -66,7 +66,7 @@ int execute_bash(char *path)
         }
 
         // If line does not end with new line, add a new line.
-        printf("shell: executing %s%s", line, line[strlen(line)-1] == '\n' ? "" : "\n");
+        printf("%s %s%s", PROMPT, line, line[strlen(line)-1] == '\n' ? "" : "\n");
 
         execute_input(line, &quit);
 
