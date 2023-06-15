@@ -7,9 +7,10 @@
 #include <ctype.h>
 #include "executer.h"
 
-int read_line(char dest[INPUT_SIZE], size_t limit)
+// TODO: fare che continua a leggere l'input se il new line e' stato inserito dentro le quotes non ancora chiuse.
+int read_line(char dest[INPUT_SIZE])
 {
-    if (fgets(dest, limit, stdin) == NULL)
+    if (fgets(dest, INPUT_SIZE, stdin) == NULL)
     {
         return BLANK;
     }
@@ -26,11 +27,40 @@ int read_line(char dest[INPUT_SIZE], size_t limit)
     return OK;
 }
 
-void *execute_line(char *input, int *quit)
+void execute_input(char *input, int *quit)
 {
-    for (char *cmd = strtok(input, ";"); cmd != NULL; cmd = strtok(NULL, ";"))
-    {
+    char divider = ';', sub_start = 0, sub_len = 0;
 
+    int len = strlen(input);
+    for (int i = 0; i <= len; i++)
+    {
+        sub_len++;
+
+        if (i < len)
+        {
+            // Quotes found
+            if (input[i] == '"')
+            {
+                divider = (divider == ';') ? '"' : ';';
+                continue;
+            }
+
+            // Divider not found
+            if ((divider != ';') || strchr(";\n", input[i]) == NULL)
+            {
+                continue;
+            }
+        }
+
+        // TODO: ricontrollare che il malloc sia giusto perche' mi pare che pure con sub_len-1 funzioni
+        char *cmd = malloc(sub_len); // Inlcude gia' il null terminator perche' la lunghezza e' sub_len-1
+        strncpy(cmd, input+sub_start, sub_len-1); // -1 perche' sub_len include questo divider
+        cmd[sub_len-1] = '\0';
+
+        sub_start = i + 1; // Set the start for the next command
+        sub_len = 0;       // Resets the length for the next command
+
+        // EXECUTE COMMAND
         int check = special_check(cmd);
         if (check != 0) // EMPTY or QUIT
         {
@@ -41,8 +71,9 @@ void *execute_line(char *input, int *quit)
             continue;
         }
 
-        char **args = manual_parse(cmd);
+        char **args = parse_command(cmd);
         execute_cmd(args);
+        // END
     }
 }
 
@@ -83,7 +114,7 @@ int special_check(char *cmd)
     return end == 0 ? QUIT : 0;
 }
 
-char **manual_parse(char *cmd)
+char **parse_command(char *cmd)
 {
     // Trim leading spaces
     while (isspace((unsigned char)*cmd))
@@ -91,11 +122,11 @@ char **manual_parse(char *cmd)
         cmd++;
     }
 
-    // TODO: RICORDA DI FARE FREE OVUNQUE HO SCRITTO MALLOC
-    char **args = malloc(1 * sizeof(char *));
-    char divider = ' '; // TODO: aggiungere altri white-space characters
+    char divider = ' '; // TODO: ci vanno gli altri white-space characters?
     int j = 0, sub_start = 0, sub_len = 0;
 
+    // TODO: RICORDA DI FARE FREE OVUNQUE HO SCRITTO MALLOC
+    char **args = malloc(1 * sizeof(char *));
     for (int i = 0; i <= strlen(cmd); i++)
     {
         char c = cmd[i];
@@ -109,10 +140,10 @@ char **manual_parse(char *cmd)
                 divider = ' ';
                 sub_len--;
             }
-            
+
             args[j] = malloc(sub_len);
             // TODO: il -1 toglie lo spazio finale
-            memcpy(args[j], &cmd[sub_start], sub_len-1); // ALTERNATIVA: strncpy(arg, cmd+sub_start, sub_len-1);
+            memcpy(args[j], &cmd[sub_start], sub_len - 1); // ALTERNATIVA: strncpy(arg, cmd+sub_start, sub_len-1);
             // TODO: il null terminator non dovrebbe servire... (perche' non viene aggiunto)
             sub_len = 0;
             sub_start = i + 1;
@@ -152,9 +183,6 @@ static int execute_cmd(char **args)
     if (pid == 0)
     {
         // Cambio l'immagine al figlio cosi' da eseguire il comando
-        // int error = execl("/bin/sh", "/bin/sh", "-c", cmd, NULL); // TODO: will this always work?
-        // TODO: sostituire con la versione vecchia execvp(args[0], args) cosi' che implemento
-        // pure il parsing della stringa.
         int error = execvp(args[0], args);
         if (error == -1)
         {
@@ -162,7 +190,6 @@ static int execute_cmd(char **args)
             exit(EXIT_FAILURE); // TODO: come si uccide il figlio se l'exec ha fallito? Cosi' dovrebbe bastare...
         }
 
-        // TODO: capire quale exec usare siccome questo qua sotto non funziona ma lo preferisco.
         // execl("bin", "sh", "-c", "pwd", NULL);
         // TODO: va termiato necessariamente con NULL? https://stackoverflow.com/questions/2407605/c-warning-missing-sentinel-in-function-call
     }

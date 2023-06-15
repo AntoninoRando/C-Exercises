@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include "executer.c"
 #include "shell.h"
-// #include "memory.c"
 
 int shell_loop()
 {
@@ -14,7 +13,7 @@ int shell_loop()
         // PROMPT
         printf("(myShell) $ ");
 
-        int lineCheck = read_line(line, INPUT_SIZE);
+        int lineCheck = read_line(line);
 
         if (lineCheck != OK) // Blank or Overflow
         {
@@ -25,7 +24,7 @@ int shell_loop()
             continue;
         }
 
-        execute_line(line, &quit);
+        execute_input(line, &quit);
         while (wait(NULL) > 0); // Waits for all children process to end.
     }
 
@@ -69,7 +68,7 @@ int execute_bash(char *path)
         // If line does not end with new line, add a new line.
         printf("shell: executing %s%s", line, line[strlen(line)-1] == '\n' ? "" : "\n");
 
-        execute_line(line, &quit);
+        execute_input(line, &quit);
 
         while (wait(NULL) > 0); // Waits for all children process to end.
 
