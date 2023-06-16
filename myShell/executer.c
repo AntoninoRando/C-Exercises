@@ -6,75 +6,141 @@
 #include <sys/wait.h>
 #include <ctype.h>
 #include "executer.h"
+#include "utils.c"
 
-// TODO: fare che continua a leggere l'input se il new line e' stato inserito dentro le quotes non ancora chiuse.
 int read_line(char dest[INPUT_SIZE])
 {
-    if (fgets(dest, INPUT_SIZE, stdin) == NULL)
+    // if (fgets(dest, INPUT_SIZE, stdin) == NULL)
+    // {
+    //     return EOF;
+    // }
+
+    int allocated = 0, eof = EOI;
+
+    do
     {
-        return BLANK;
+        // TODO: RICONTROLLARE QUANTO FATTO QUI SOTTO CON L'APPEND DELLA STRINGA
+        // ad esempio se scrivo "Ciao\nproviamo\n\" e speriamo bene MI DA ERRORE
+        int size = INPUT_SIZE - allocated;
+        char append[size];
+
+        if (fgets(append, size, stdin) == NULL)
+        {
+            eof = EOF;
+            break;
+        }
+
+        memcpy(&dest[allocated], append, size);
+        allocated = strlen(dest);
+
+        // Limit exided means no new-line at the end.
+        if (dest[allocated - 1] != '\n')
+        {
+            return OVERFLOW; // TODO: NON SO SE VADA FLUSSHATO L'EXTRA
+        }
+
+    } while (check_quotes(dest, allocated) != 0 || eof == EOF || !feof(stdin));
+    /* TODO: senza l'aggiunta del !feof(stdin) con il file "quotes.sh" che ha 
+    le quotes aperte alla fine non temina mai di printare. Deduco sia dovuto
+    al fatto che non sempre c'e' l'EOF, ma non ho capito bene come funziona 
+    questa cosa. */
+
+    // Trim trailing new-line characters
+    while (allocated > 0 && dest[allocated - 1] == '\n')
+    {
+        dest[allocated - 1] = '\0';
+        allocated--;
     }
 
-    // Limit exided means no 'new line' char at the end.
-    if (dest[strlen(dest) - 1] != '\n')
-    {
-        // NON SO SE VADA FLUSSHATO L'EXTRA
-        return OVERFLOW;
-    }
-
-    // Replace newline character with string terminator.
-    dest[strlen(dest) - 1] = '\0';
-    return OK;
+    return eof;
 }
 
+// TODO: occhio a quando ci sono soli ; perche' mi da errore. Occhio anche al quit
+// TODO: occhio a quando si termina con ;
+// TODO: occhio a quando si mettono degli spazi dopo ;
 void execute_input(char *input, int *quit)
 {
-    char divider = ';', sub_start = 0, sub_len = 0;
-
-    int len = strlen(input);
-    for (int i = 0; i <= len; i++)
+    int inputLen = strlen(input);
+    if (inputLen == 0)
     {
-        sub_len++;
-
-        if (i < len)
-        {
-            // Quotes found
-            if (input[i] == '"')
-            {
-                divider = (divider == ';') ? '"' : ';';
-                continue;
-            }
-
-            // Divider not found
-            if ((divider != ';') || strchr(";\n", input[i]) == NULL)
-            {
-                continue;
-            }
-        }
-
-        // TODO: ricontrollare che il malloc sia giusto perche' mi pare che pure con sub_len-1 funzioni
-        char *cmd = malloc(sub_len); // Inlcude gia' il null terminator perche' la lunghezza e' sub_len-1
-        strncpy(cmd, input+sub_start, sub_len-1); // -1 perche' sub_len include questo divider
-        cmd[sub_len-1] = '\0';
-
-        sub_start = i + 1; // Set the start for the next command
-        sub_len = 0;       // Resets the length for the next command
-
-        // EXECUTE COMMAND
-        int check = special_check(cmd);
-        if (check != 0) // EMPTY or QUIT
-        {
-            if (check == QUIT)
-            {
-                *quit = 1;
-            }
-            continue;
-        }
-
-        char **args = parse_command(cmd);
-        execute_cmd(args);
-        // END
+        return;
     }
+
+    // TODO: RICORDA DI FARE FREE OVUNQUE HO SCRITTO MALLOC
+    // Il primo carattere va fatto manualmente perche' nel ciclo si accede all'(i-1)-esimo elemento
+    char **args = malloc(1 * sizeof(char *));
+
+    int argc = 0;
+    int arg_len = 1;                                    // Conta il primo carattere
+    int arg_start = strchr(DIVIDERS, input[0]) != NULL; // Inizia a contare 1 oltre se il carattere 1 e' un separatore
+    int quotes = (input[0] == '"');                     // Aggiungi una quote se e' al primo carattere
+    int spaces = 0;
+
+    for (int i = 1; i < inputLen; i++)
+    {
+        arg_len++;
+
+        // Quote found (ignore \")
+        if (input[i] == '"' && input[i - 1] != '\\')
+        {
+            quotes++;
+        }
+
+        if (input[i] == ' ')
+        {
+            // Ignore following spaces
+            if (spaces)
+            {
+                continue;
+            }
+            spaces++;
+        }
+        else
+        {
+            spaces = 0;
+        }
+
+        int last = (i == inputLen - 1);                      // This char is the last?
+        int closedQuotes = (quotes % 2) == 0;                // Quotes are closed?
+        int charIsDiv = strchr(DIVIDERS, input[i]) != NULL;  // This char is a divider?
+        int cmdEnd = last || (closedQuotes && charIsDiv);    // Commands finished?
+        int argEnd = (closedQuotes && spaces > 0) || cmdEnd; // Arg finished?
+
+        if (argEnd)
+        {
+            arg_len = arg_len - charIsDiv - spaces; // Remove from the arg spaces and/or dividers
+            args[argc] = malloc(arg_len + 1);
+            memcpy(args[argc], &input[arg_start], arg_len); // Lo spazio, in caso ci sia, si puo' anche non togliere
+            args[argc][arg_len] = '\0';
+            argc++;
+            arg_start = i + 1;
+            arg_len = 0;
+            args = realloc(args, (argc + 1) * sizeof(char *)); // Make space for new char.
+        }
+
+        if (cmdEnd)
+        {
+            execute_cmd(args);
+            free(args);
+            args = malloc(1 * sizeof(char *));
+            argc = 0;
+        }
+
+        // ********************
+        // EXECUTE COMMAND
+        // int check = special_check(cmd);
+        // if (check != 0) // EMPTY or QUIT
+        // {
+        //     if (check == QUIT)
+        //     {
+        //         *quit = 1;
+        //     }
+        //     continue;
+        // }
+        // ********************
+    }
+
+    free(args);
 }
 
 int special_check(char *cmd)
@@ -122,7 +188,7 @@ char **parse_command(char *cmd)
         cmd++;
     }
 
-    char divider = ' '; // TODO: ci vanno gli altri white-space characters?
+    char divider = ' '; // TODO: ci vanno gli altri white-space characters che fungono da dividers?
     int j = 0, sub_start = 0, sub_len = 0;
 
     // TODO: RICORDA DI FARE FREE OVUNQUE HO SCRITTO MALLOC
@@ -182,16 +248,11 @@ static int execute_cmd(char **args)
     dal padre. Mi pare sensata come cosa siccome anche il PC dovrebbe essere copiato. */
     if (pid == 0)
     {
-        // Cambio l'immagine al figlio cosi' da eseguire il comando
-        int error = execvp(args[0], args);
-        if (error == -1)
+        if (execvp(args[0], args) == -1) // Cambio l'immagine al figlio e controllo possibili errori
         {
             perror("exec failed");
             exit(EXIT_FAILURE); // TODO: come si uccide il figlio se l'exec ha fallito? Cosi' dovrebbe bastare...
         }
-
-        // execl("bin", "sh", "-c", "pwd", NULL);
-        // TODO: va termiato necessariamente con NULL? https://stackoverflow.com/questions/2407605/c-warning-missing-sentinel-in-function-call
     }
 
     return 0;

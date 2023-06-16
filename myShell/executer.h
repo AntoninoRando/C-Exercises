@@ -1,12 +1,11 @@
-#define BLANK 0
-#define OVERFLOW -1
-#define OK 1
+#define OVERFLOW 1
+#define EOI 0 // End Of Input
 #define INPUT_SIZE 512
 
 #define EMPTY 2
 #define QUIT 3
 
-#define COMMANDS_SEP ";\n"
+#define DIVIDERS ";\n"
 
 
 // TODO: ci dovrebbe essere la funzione di libreria "readline"

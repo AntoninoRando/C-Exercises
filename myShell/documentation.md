@@ -33,3 +33,11 @@ For example:
     - regular expressions (e.g. "*.txt");
     - quotes inside quotes (e.g. `echo "Hello \"World\""`);
     - user opened quotes and then types enter.
+
+# Bash Mode
+L'esecuzione della bash mode è estremamente simile a quella dell'interactive mode. Innanzitutto prima di eseguire ogni riga viene stampato su console che riga che si sta eseguendo; tale stampa è fatta in modo tale che sembri che la linea sia stata digitata dall'utente. L'unica differenza è che in modalità bash lo standard input da cui si leggono le linee non è il terminale ma il file. Questo è utile per usare le stesse funzioni, ma anche per leggere, nel file, le istruzioni che sono scritte su più linee. Ad esempio:
+
+```
+echo "Hello
+World"
+```
