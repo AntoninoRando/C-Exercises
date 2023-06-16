@@ -1,28 +1,30 @@
 #include <stdlib.h>
+#include <sys/wait.h>
 #include "executer.c"
 #include "shell.h"
 
-int shell_loop(FILE* __restrict__ __stream)
+int shell_loop()
 {
     int quit = 0;
     while (quit != 1)
     {
         char line[INPUT_SIZE];
 
-        // PROMPT
         printf("%s", PROMPT);
+        fflush(stdout); // Ensure to print the prompt before buffer is full or new-line is entered
 
-        int lineCheck = read_line(line, __stream);
+        int lineCheck = read_line(line, stdin);
 
         if (lineCheck == OVERFLOW)
         {
-            printf("shell: too many characters in the input: only %d are allowed\n", INPUT_SIZE);
+            printf("%stoo many characters in the input: only %d are allowed\n", PROMPT, INPUT_SIZE);
             continue;
         }
 
         execute_input(line, &quit);
 
-        while (wait(NULL) > 0); // Waits for all children process to end.
+        while (wait(NULL) > 0)
+            ; // Waits for all children process to end.
 
         if (lineCheck == EOF)
         {
@@ -34,9 +36,8 @@ int shell_loop(FILE* __restrict__ __stream)
 }
 
 // TODO: dovrei fare exit o return va bene?
-int execute_bash(char *path)
+int bash_loop(char *path)
 {
-    // Open  file and redirect standard input
     FILE *file = fopen(path, "r");
 
     if (file == NULL)
@@ -47,7 +48,7 @@ int execute_bash(char *path)
     }
 
     int j = strlen(path) - 1;
-    // TODO: checks extension in a better way
+
     if (j <= 2 || (path[j - 2] != '.' && path[j - 1] != 's' && path[j] != 'h'))
     {
         printf("%s is not a bash file\n", path);
@@ -55,9 +56,41 @@ int execute_bash(char *path)
         return 1;
     }
 
-    int error = shell_loop(file);
+    int quit = 0;
+    while (quit != 1)
+    {
+        char line[INPUT_SIZE];
+
+        int lineCheck = read_line(line, file);
+
+        if (lineCheck == OVERFLOW)
+        {
+            printf("%stoo many characters in the input: only %d are allowed\n", PROMPT, INPUT_SIZE);
+            continue;
+        }
+        
+        // TODO: convertire in un controllo per solo linee vuote
+        if (strlen(line) < 0)
+        {
+            continue;
+        }
+
+        printf("%s%s", PROMPT, line);
+        fflush(stdout); // Ensure to print the prompt before buffer is full or new-line is entered
+
+        execute_input(line, &quit);
+
+        while (wait(NULL) > 0)
+            ; // Waits for all children process to end.
+
+        if (lineCheck == EOF)
+        {
+            break;
+        }
+    }
+
     fclose(file);
-    return error;
+    return 0;
 }
 
 int main(int argc, char **argv)
@@ -65,7 +98,7 @@ int main(int argc, char **argv)
     // Interactive mode
     if (argc == 1)
     {
-        return shell_loop(stdin);
+        return shell_loop();
     }
 
     // Bash mode
@@ -73,7 +106,7 @@ int main(int argc, char **argv)
 
     for (int i = 1; i < argc; i++)
     {
-        errors += execute_bash(argv[i]);
+        errors += bash_loop(argv[i]);
     }
 
     return errors;

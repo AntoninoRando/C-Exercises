@@ -22,6 +22,10 @@ For example:
 - `shell command1;; command2` is a wrong typed input because of the two semicolons, but this error can easely be fixed removing one of them;
 - `shell command1command2` can't be fixed as this is considere one single and non-exiting command.
 
+In the second case:
+- if the commands does not exist, this shell prints an error message;
+- if the commands' arguments do not exist, the exec will print the error message.
+
 # Miscellaneous
 - If multiple arguments are given, they are treaten like multiple .sh files.
 - New line character in .sh file are treaten like instruction concatenation (;), unless they are inside quotes ("").
@@ -35,10 +39,14 @@ For example:
     - user opened quotes and then types enter.
 - It is not supported the \ ad the end of the input (which normally let the user type in a new line but do not insert the new-line character).
 
-# Bash Mode
-L'esecuzione della bash mode è estremamente simile a quella dell'interactive mode. Innanzitutto prima di eseguire ogni riga viene stampato su console che riga che si sta eseguendo; tale stampa è fatta in modo tale che sembri che la linea sia stata digitata dall'utente. L'unica differenza è che in modalità bash lo standard input da cui si leggono le linee non è il terminale ma il file. Questo è utile per usare le stesse funzioni, ma anche per leggere, nel file, le istruzioni che sono scritte su più linee. Ad esempio:
-
 ```
 echo "Hello
 World"
 ```
+
+# Bash Mode
+The bash mode differ from the interactive mode in two ways:
+- in bash mode, the input from which the lines are read is the bash file;
+- the promp is printend on the stout differently.
+
+Multiple bash files can be passsed as arguments, each of them executes individually and in order.
