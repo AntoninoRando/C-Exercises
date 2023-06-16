@@ -35,7 +35,6 @@ int read_line(char dest[INPUT_SIZE], FILE *__restrict__ __stream)
     return end;
 }
 
-// TODO: se faccio "ls -l; grep echo ./Samples/easy.sh" mi da errore con free
 void execute_input(char *input, int *quit)
 {
     int inputLen = strlen(input);
@@ -109,46 +108,47 @@ void execute_input(char *input, int *quit)
             argi++;
         }
 
+        // Se questo argomento non e' ancora finito, continua a scriverlo (nella prossima iterazione)
         if (!argEnded || argi <= 0)
         {
             continue;
         }
-        
+
         args[argc][argi] = '\0';
 
-        if (!cmdEnded)
+        if (cmdEnded)
+        {
+            // Execute command
+            args[argc + 1] = NULL;
+            if (execute_cmd(args) == -1)
+            {
+                *quit = 1;
+            }
+
+            // Free memory
+            for (int f = 0; f <= argc; f++)
+            {
+                free(args[f]);
+            }
+            free(args);
+
+            // Reset for next command
+            args = malloc(2 * sizeof(char *));
+            args[0] = malloc(INPUT_SIZE);
+            argc = 0;
+            argi = 0;
+            writeAll = 0;
+        }
+        else
         {
             argc++;
             argi = 0;
-            args = realloc(args, (argc + 1) * sizeof(char *)); // 1 per il NULL alla fine
+            args = realloc(args, (argc + 2) * sizeof(char *)); // 1 per il NULL alla fine
             args[argc] = malloc(INPUT_SIZE);
-            continue;
         }
-        
-        args[argc+1] = NULL;
-
-        if (execute_cmd(args) == -1)
-        {
-            *quit = 1;
-        }
-
-        for (int f = 0; f <= argc; f++)
-        {
-            free(args[f]);
-        }
-        free(args);
-
-        args = malloc(2 * sizeof(char *));
-        argc = 0;
-        argi = 0;
-        writeAll = 0;
-        args[argc] = malloc(INPUT_SIZE);
     }
 
-    if (args)
-    {
-        free(args);
-    }
+    free(args);
 }
 
 static int execute_cmd(char **args)

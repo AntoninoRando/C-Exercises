@@ -50,3 +50,6 @@ The bash mode differ from the interactive mode in two ways:
 - the promp is printend on the stout differently.
 
 Multiple bash files can be passsed as arguments, each of them executes individually and in order.
+
+# Shell Custom Commands
+Shell custom commands like `cd` are not implemented, except for `quit`.
