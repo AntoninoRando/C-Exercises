@@ -1,9 +1,9 @@
-echo "ECHO with
-enter"
-echo "ECHO with \n"; echo "ECHO with \"Quotes\""
-echo "ECHO with semicolon; and quit"; echo "ECHO with \"semicolon; and quotes\";"
-echo "Echo with
+echo "(1) new
+line"
+echo "(2) \n"; echo "(3) \"Quotes\""
+echo "(4) semicolon; and quit"; echo "(5) \"semicolon; and quotes\";"
+echo "(6)
 enter
 semicolon;
 and quotes \"" and then no quotes
-echo "ECHO with unclosed quotes
+echo "(7) unclosed quotes

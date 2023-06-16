@@ -1,6 +1,9 @@
-#define PROMPT "\n\033[1;31mshell $\033[0m "
+#define PROMPT "\033[1;31mshell $\033[0m "
 
-int shell_loop();
+/**
+ * @brief Execute a shell reading the lines from the input stream.
+ */
+int shell_loop(FILE* __restrict__ __stream);
 
 /**
  * @brief Execute the bash file (.sh) specified by path. Returns 1 on error and 0 on success.

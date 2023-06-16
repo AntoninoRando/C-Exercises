@@ -1,4 +1,4 @@
 /**
- * @brief Checks if the quotes are closed or not.
+ * @brief Count all quotes occurrency (ignorgin \").
  */
-int check_quotes(const char *input, int input_len);
+int count_quotes(const char *input);

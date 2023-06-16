@@ -1,14 +1,20 @@
-int check_quotes(const char *input, int input_len)
+int count_quotes(const char *input)
 {
-    if (!input || input_len == 0)
+    int count = 0;
+
+    for (int i = 0; i < strlen(input); i++)
     {
-        return 0;
+        if (input[i] == '\\')
+        {
+            i++; // Skip next char
+            continue;
+        }
+
+        if (input[i] == '"')
+        {
+            count++;
+        }
     }
 
-    int count = (input[0] == '"'); // Il primo va fatto manualmente perche' nel ciclo si accede all'(i-1)-esimo elemento
-    for (int i = 1; i < input_len; i++)
-    {
-        count += (input[i - 1] != '\\' && input[i] == '"'); // Ignore \" char
-    }
-    return count % 2;
+    return count;
 }

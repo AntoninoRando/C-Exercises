@@ -2,7 +2,7 @@
 #include "executer.c"
 #include "shell.h"
 
-int shell_loop()
+int shell_loop(FILE* __restrict__ __stream)
 {
     int quit = 0;
     while (quit != 1)
@@ -12,7 +12,7 @@ int shell_loop()
         // PROMPT
         printf("%s", PROMPT);
 
-        int lineCheck = read_line(line);
+        int lineCheck = read_line(line, __stream);
 
         if (lineCheck == OVERFLOW)
         {
@@ -21,6 +21,7 @@ int shell_loop()
         }
 
         execute_input(line, &quit);
+
         while (wait(NULL) > 0); // Waits for all children process to end.
 
         if (lineCheck == EOF)
@@ -36,11 +37,11 @@ int shell_loop()
 int execute_bash(char *path)
 {
     // Open  file and redirect standard input
-    FILE *file = freopen(path, "r", stdin);
+    FILE *file = fopen(path, "r");
 
     if (file == NULL)
     {
-        perror("freopen failed");
+        perror("fopen failed");
         fclose(file);
         return 1;
     }
@@ -54,9 +55,8 @@ int execute_bash(char *path)
         return 1;
     }
 
-    int error = shell_loop();
+    int error = shell_loop(file);
     fclose(file);
-    freopen("/dev/stdin", "r", stdin); // Resets the stdin
     return error;
 }
 
@@ -65,7 +65,7 @@ int main(int argc, char **argv)
     // Interactive mode
     if (argc == 1)
     {
-        return shell_loop();
+        return shell_loop(stdin);
     }
 
     // Bash mode
