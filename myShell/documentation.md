@@ -27,29 +27,28 @@ In the second case:
 - if the commands' arguments do not exist, the exec will print the error message.
 
 # Miscellaneous
-- If multiple arguments are given, they are treaten like multiple .sh files.
-- New line character in .sh file are treaten like instruction concatenation (;), unless they are inside quotes ("").
-- The shell has been design to cover border cases like:
-    - semicolon inside quotes (e.g. `echo "Hello; World"`);
-    - newline inside quotes (e.g. `echo "Hello\nWorld"`);
-    - multiple semicolon;
-    - empty commands;
-    - regular expressions (e.g. "*.txt");
-    - quotes inside quotes (e.g. `echo "Hello \"World\""`);
-    - user opened quotes and then types enter.
-- It is not supported the \ ad the end of the input (which normally let the user type in a new line but do not insert the new-line character).
+New line character in .sh file are treaten like instruction concatenation (;), unless they are inside quotes ("").
 
-```
-echo "Hello
-World"
-```
+The shell has been design to cover border cases like:
+- semicolon inside quotes (e.g. `echo "Hello; World"`);
+- newline inside quotes (e.g. `echo "Hello World"`);
+    ```
+    echo "Hello
+    World"
+    ```
+- multiple semicolon;
+- empty commands;
+- quotes inside quotes (e.g. `echo "Hello \"World\""`);
+- user opened quotes and then types enter.
+
+To simplify, \ is always considered an escape character (to type \ simply type \\). Thus, it is not supported the \ ad the end of the input (which normally let the user type in a new line but do not insert the new-line character). 
 
 # Bash Mode
-The bash mode differ from the interactive mode in two ways:
-- in bash mode, the input from which the lines are read is the bash file;
-- the promp is printend on the stout differently.
+The bash mode differs from the interactive mode in two ways:
+- in bash mode, the stream from which the lines are read is the bash file;
+- the prompt is printend on the stout differently.
 
-Multiple bash files can be passsed as arguments, each of them executes individually and in order.
+Multiple bash files can be passsed as arguments, each of them executes individually (in order).
 
 # Shell Custom Commands
-Shell custom commands like `cd` are not implemented, except for `quit`.
+Shell custom commands like `cd` are not implemented, except for `quit`. Those commands could also make problem with the concurrency feature of this shell.

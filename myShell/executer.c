@@ -5,14 +5,15 @@
 #include <sys/types.h>
 #include "executer.h"
 #include "utils.c"
+#include "shell.h"
 
 int read_line(char dest[INPUT_SIZE], FILE *__restrict__ __stream)
 {
-    int allocated = 0, quotes = 0, end = EOI;
+    int allocated = 0, quotes = 0, endWithN = 1, end = EOI;
 
     do
     {
-        int size = INPUT_SIZE - allocated;
+        int size = INPUT_SIZE - allocated - 1;
         char append[size];
 
         if (fgets(append, size, __stream) == NULL)
@@ -24,13 +25,34 @@ int read_line(char dest[INPUT_SIZE], FILE *__restrict__ __stream)
         memcpy(&dest[allocated], append, size);
         allocated = strlen(dest);
 
-        if (dest[allocated - 1] != '\n') // Limit exided means no new-line at the end.
+        // Overflow means not \n at the end and not EOF as next char
+        // (i.e. there are other characters to read in the same line
+        // that the fgets didn't get).
+        if (dest[allocated - 1] != '\n')
         {
-            return OVERFLOW;
+            if (fgetc(__stream) != EOF)
+            {
+                return OVERFLOW;
+            }
+
+            /* Buffer doesn't end with \n but all buffer size is taken, thus even if
+            the string is full stored (the following char is EOF) there is no space
+            for the string-terminator. This means overflow.*/
+            if (allocated >= INPUT_SIZE)
+            {
+                return OVERFLOW;
+            }
+
+            endWithN = 0;
+            break;
         }
 
         quotes += count_quotes(append);
     } while (quotes % 2 != 0);
+
+    /* If ends with \n, that char can be replaced with \0. Otherwise the \0 must be
+    added after (there is space, we already checked for overflow!)*/
+    dest[allocated - endWithN] = '\0';
 
     return end;
 }
@@ -38,18 +60,15 @@ int read_line(char dest[INPUT_SIZE], FILE *__restrict__ __stream)
 void execute_input(char *input, int *quit)
 {
     int inputLen = strlen(input);
-
-    if (inputLen == 0)
-    {
-        return;
-    }
-
     char **args = malloc(2 * sizeof(char *)); // 2: 1 per il comando e 1 per il NULL terminator
     int argc = 0, argi = 0;
     int writeAll = 0;
     args[argc] = malloc(INPUT_SIZE); // Bisogna allocare piu' memoria per poter scrivere tutti i caratteri
 
-    for (int i = 0; i < inputLen; i++)
+    /* When looping we must include the null-terminato because if the command ends with a quote,
+    that quote will not indicate that the command is ended but will indicate that the quotes are
+    ended instead.*/
+    for (int i = 0; i <= inputLen; i++)
     {
         // Escape character
         if (input[i] == '\\')
@@ -89,10 +108,11 @@ void execute_input(char *input, int *quit)
             argEnded = 1;
             write = 0;
         }
-        if (i == inputLen - 1)
+        if (i == inputLen) // This is the string terminator \0: don't write it, we write it manually
         {
             argEnded = 1;
             cmdEnded = 1;
+            write = 0;
         }
         if (strchr(CMD_DIVS, input[i]) != NULL)
         {
@@ -148,6 +168,11 @@ void execute_input(char *input, int *quit)
         }
     }
 
+    // Free memory
+    for (int f = 0; f <= argc; f++)
+    {
+        free(args[f]);
+    }
     free(args);
 }
 
@@ -177,7 +202,7 @@ static int execute_cmd(char **args)
     {
         if (execvp(args[0], args) == -1) // Cambio l'immagine al figlio e controllo possibili errori
         {
-            printf("Invalid command %s\n", args[0]);
+            printf("%sInvalid command %s\n", PROMPT, args[0]);
             exit(EXIT_FAILURE);
         }
     }

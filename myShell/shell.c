@@ -18,32 +18,29 @@ int shell_loop()
         if (lineCheck == OVERFLOW)
         {
             printf("%stoo many characters in the input: only %d are allowed\n", PROMPT, INPUT_SIZE);
-            continue;
+            return 1;
+        }
+        else if (lineCheck == EOF)
+        {
+            break;
         }
 
         execute_input(line, &quit);
 
         while (wait(NULL) > 0)
             ; // Waits for all children process to end.
-
-        if (lineCheck == EOF)
-        {
-            break;
-        }
     }
 
     return 0;
 }
 
-// TODO: dovrei fare exit o return va bene?
 int bash_loop(char *path)
 {
     FILE *file = fopen(path, "r");
 
     if (file == NULL)
     {
-        perror("fopen failed");
-        fclose(file);
+        printf("%s%s: no such file or directory\n", PROMPT, path);
         return 1;
     }
 
@@ -51,7 +48,7 @@ int bash_loop(char *path)
 
     if (j <= 2 || (path[j - 2] != '.' && path[j - 1] != 's' && path[j] != 'h'))
     {
-        printf("%s is not a bash file\n", path);
+        printf("%s%s is not a bash file\n", PROMPT, path);
         fclose(file);
         return 1;
     }
@@ -66,27 +63,31 @@ int bash_loop(char *path)
         if (lineCheck == OVERFLOW)
         {
             printf("%stoo many characters in the input: only %d are allowed\n", PROMPT, INPUT_SIZE);
-            continue;
+            return 1;
         }
-        
-        // TODO: convertire in un controllo per solo linee vuote
-        if (strlen(line) < 0)
+        else if (lineCheck == EOF)
+        {
+            break;
+        }
+
+        int lineLen = strlen(line);
+
+        if (lineLen < 0)
         {
             continue;
         }
 
         printf("%s%s", PROMPT, line);
+        if (line[lineLen - 1] != '\n') // Ensure to print a new line after the prompt.
+        {
+            printf("\n");
+        }
         fflush(stdout); // Ensure to print the prompt before buffer is full or new-line is entered
 
         execute_input(line, &quit);
 
         while (wait(NULL) > 0)
             ; // Waits for all children process to end.
-
-        if (lineCheck == EOF)
-        {
-            break;
-        }
     }
 
     fclose(file);
@@ -102,12 +103,12 @@ int main(int argc, char **argv)
     }
 
     // Bash mode
-    int errors = 0;
 
+    int errors = 0;
     for (int i = 1; i < argc; i++)
     {
         errors += bash_loop(argv[i]);
     }
 
-    return errors;
+    return 0;
 }

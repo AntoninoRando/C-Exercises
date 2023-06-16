@@ -6,4 +6,10 @@ echo "(6)
 enter
 semicolon;
 and quotes \"" and then no quotes
-echo "(7) unclosed quotes
+echo "(7)
+enter
+quit
+\"
+;
+";echo
+echo "(8) unclosed quotes
