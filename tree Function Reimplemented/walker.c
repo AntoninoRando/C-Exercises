@@ -27,6 +27,7 @@ int tree(int argc, char **argv)
         return 0;
     }
 
+    // TODO: implement default path "." when no paths are given
     for (int i = 0; i < paths_num; i++)
     {
         struct stat f_stat;
