@@ -22,22 +22,6 @@ int isLittleEndian()
 
 // 2. MUTABLE ARRAYS -----------------------------------------------------------
 
-/* Since the function returns an `int` and not a vector, we must pass the input
-vector by reference, otherwise it would be impossible to retrieve the new vector
-from this function. */
-
-/* An array can be passed as a pointer to the first element of the array. The
-void type indicates that the array element can be of any type. */
-
-/* The idea behing the following algorithm is to apply a sorting algorithm on an
-array of pointers (to the original array's elements). In this way, we are both
-able to:
-    - obtains the elements values in order to sort them;
-    - change duplicated elements in the original lists using the pointer.
-After we changed every duplicated element in the original list with a `NULL`
-pointer, we can easily create a new list with no duplicates in which every
-element preserves its original order. */
-
 /** @brief A variation of the `merge` function for the merge sort algorithm, in
  * which the list to sort is passed as a list of pointers to the original list
  * elements. Duplicate elements will be stored as -1 in the original list, in
