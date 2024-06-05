@@ -8,14 +8,16 @@
 
 // 1. TYPE SAFETY --------------------------------------------------------------
 
-/// @brief The `isLittleEndian` function is used to determine if the user system
-/// is little endian or big endian.
-/// @return `1` if the system is little endian, `0` otherwise.
+/** @brief The `isLittleEndian` function is used to determine if the user system
+ * is little endian or big endian.
+ * @return `1` if the system is little endian, `0` otherwise.
+ */
 int isLittleEndian()
 {
     unsigned int x = 1;
-    char *c = (char *)&x;
-    return (*c) ? 1 : 0;
+    // The value of the first byte of x is (char*)&x. If the system is little
+    // endian, it will be `1`, otherwise it will be `0`.
+    return ((char *)&x) ? 1 : 0;
 }
 
 // 2. MUTABLE ARRAYS -----------------------------------------------------------
@@ -36,10 +38,19 @@ After we changed every duplicated element in the original list with a `NULL`
 pointer, we can easily create a new list with no duplicates in which every
 element preserves its original order. */
 
-/// @brief A variation of the `merge` function for a the merge sort algorithm,
-/// in which: duplicates are "removed"; the list to merge is a list of
-/// pointers of elements of an original list. The duplicated elements are stored
-/// as a `NULL` pointer in the original list.
+/** @brief A variation of the `merge` function for the merge sort algorithm, in
+ * which the list to sort is passed as a list of pointers to the original list
+ * elements. Duplicate elements will be stored as -1 in the original list, in
+ * this way they can be removed.
+ *
+ * The original order will not be sorted, only @arrPtr@ will be sorted. In this
+ * way, we can easily remove duplicates from the original list while preserving
+ * elements original order.
+ * @param arrPtr The list of pointers to the original list elements.
+ * @param l starting index of the left subarray to merge.
+ * @param m last index of the left subarray to merge.
+ * @param r last index of the right subarray to merge.
+ */
 void merge(int **arrPtr, int l, int m, int r)
 {
     int n1 = m - l + 1;
@@ -126,6 +137,14 @@ typedef struct cBinTree
     struct cBinTree *right;
 } cBinTree;
 
+/**
+ * @brief Computes the binomial coefficient C(n, k) and returns a binary tree
+ * representing the recursive computation.
+ *
+ * @param n
+ * @param k
+ * @return cBinTree*
+ */
 cBinTree *cbin(int n, int k)
 {
     cBinTree *result = (cBinTree *)malloc(sizeof(cBinTree));
@@ -149,9 +168,12 @@ cBinTree *cbin(int n, int k)
 cBinTree *_cbinDP(int n, int k, cBinTree *memo[n + 1][k + 1])
 {
     if (memo[n][k] != NULL)
+    {
         return memo[n][k];
+    }
 
     cBinTree *result = (cBinTree *)malloc(sizeof(cBinTree));
+    memo[n][k] = result;
     result->n = n;
     result->k = k;
 
@@ -160,7 +182,6 @@ cBinTree *_cbinDP(int n, int k, cBinTree *memo[n + 1][k + 1])
         result->binomial = 1;
         result->left = NULL;
         result->right = NULL;
-        memo[n][k] = result;
         return result;
     }
 
@@ -190,41 +211,62 @@ typedef struct
     int prev;
 } pair;
 
+void removeMultiples(pair *result, int n, int next, int prime)
+{
+    int removeIndex = next * prime - 1;
+    if (removeIndex >= n)
+        return;
+
+    pair toRemove = result[removeIndex];
+
+    next += result[next - 1].next;
+
+    // "Remove" the following prime number BEFORE adjusting the result,
+    // otherwise we would lose the information about the next number to remove.
+    removeMultiples(result, n, next, prime);
+
+    // "Remove" the non-prime number
+    result[removeIndex].prev = 0;
+    result[removeIndex].next = 0;
+
+    // Adjust the next and prev values
+    if (removeIndex - toRemove.prev < n)
+        result[removeIndex - toRemove.prev].next += toRemove.next;
+    if (removeIndex + toRemove.next < n)
+        result[removeIndex + toRemove.next].prev += toRemove.prev;
+}
+
+/**
+ * @brief Computes the first n primes using the Euler sieve algorithm.
+ *
+ * @param n The target number of primes to compute.
+ * @return pair* A list of pairs from which is possible to retrieve first n
+ * primes sequence.
+ */
 pair *eulerSieve(int n)
 {
     if (n < 2)
         return NULL;
 
     pair *result = (pair *)malloc(n * sizeof(pair));
+
+    // Initialize the array (we could also initialize it with 1s, but this
+    // avoids useless operations in the following loop).
+    int nextPrev[] = {2, 0};
     for (int i = 0; i < n; i++)
     {
-        result[i].next = 1;
-        result[i].prev = 1;
+        result[i].next = nextPrev[i % 2];
+        result[i].prev = nextPrev[i % 2];
     }
+    result[0].next = 1;
+    result[0].prev = 0;
+    result[1].next = 1; // 2 is prime
+    result[1].prev = 0;
 
-    int prime = 2;
-    // int step = 1;
+    int prime = 3;
     while (prime * prime <= n)
     {
-        int i = prime - 1;
-        pair current = result[i];
-        i += current.next * prime;
-        while (i < n)
-        {
-            // printf("step: %d\n", step++);
-            // printPairs(result, n);
-            // printf("\n--------------------------------\n");
-
-            pair toRemove = result[i];
-            result[i - toRemove.prev].next += toRemove.next;
-            pair prev = result[i - toRemove.prev];
-            result[i - toRemove.prev + prev.next].prev = prev.next;
-
-            toRemove.prev = 0;
-            toRemove.next = 0;
-            result[i] = toRemove;
-            i += prime;
-        }
+        removeMultiples(result, n, prime, prime);
         prime += result[prime - 1].next;
     }
 
@@ -269,59 +311,81 @@ void printPairs(pair *pairs, int n)
     printf("\nprv ");
     for (int i = 0; i < n; i++)
         printf("%d  ", pairs[i].prev);
+    printf("\n");
+}
+
+void printPrimes(pair *pairs, int n)
+{
+    int i = 1;
+    while (i < n)
+    {
+        printf("%d ", i + 1);
+        i += pairs[i].next;
+    }
+    printf("\n");
 }
 
 int main(int arc, char **argv)
 {
+    int left;
+
+    // My system is little endian, thus I'm checking for 1
+    printf("1. TEST LITTLE ENDIAN\n");
+    assert(isLittleEndian() == 1 && "FAIL");
+    printf("OK\n");
+
+    printf("2.1 TEST REMOVE DUPS, unique ordered\n");
+    int expected[] = {1, 2, 3, 4, 5};
+    int uniquesOrdered[] = {1, 2, 3, 4, 5};
+    left = removeDups(uniquesOrdered, 5);
+    assert(memcmp(uniquesOrdered, expected, sizeof(expected)) == 0 && "FAIL");
+    assert(left == 5 && "FAIL");
+    printf("OK\n");
+
+    printf("2.2 TEST REMOVE DUPS, unique unordered\n");
+    int expUniques[] = {4, 5, 3, 1, 2};
+    int uniques[] = {4, 5, 3, 1, 2};
+    left = removeDups(uniques, 5);
+    assert(memcmp(uniques, expUniques, sizeof(expUniques)) == 0 && "FAIL");
+    assert(left == 5 && "FAIL");
+    printf("OK\n");
+
+    printf("2.3 TEST REMOVE DUPS, unordered\n");
+    int expDups[] = {4, 5, 3, 1, 2};
+    int dups[] = {4, 4, 5, 3, 5, 1, 4, 2};
+    left = removeDups(dups, 8);
+    assert(memcmp(dups, expDups, sizeof(expDups)) == 0 && "FAIL");
+    assert(left == 5 && "FAIL");
+    printf("OK\n");
+
+    printf("2.4 TEST REMOVE DUPS, all equals\n");
+    int expEqs[] = {4};
+    int eqs[] = {4, 4, 4, 4, 4, 4, 4, 4};
+    left = removeDups(eqs, 8);
+    assert(memcmp(eqs, expEqs, sizeof(expEqs)) == 0 && "FAIL");
+    assert(left == 1 && "FAIL");
+    printf("OK\n");
+
+    printf("2.5 TEST REMOVE DUPS, unordered 2\n");
+    int expDups2[] = {4, 8, 9, 1, 0};
+    int dups2[] = {4, 4, 4, 4, 4, 4, 4, 4, 8, 8, 8, 8, 9, 1, 1, 1, 1, 0, 0, 4, 4};
+    left = removeDups(dups2, 21);
+    assert(memcmp(dups2, expDups2, sizeof(expDups2)) == 0 && "FAIL");
+    assert(left == 5 && "FAIL");
+    printf("OK\n");
+
+    printf("3.1 TEST BINOMIAL, (5 3)\n");
+    printCBinTree(cbin(5, 3));
+
+    printf("3.2 TEST BINOMIAL, (5 3) DP\n");
+    printCBinTree(cbinDP(5, 3));
+
+    printf("4.1 TEST EULER SIEVE, 24\n");
     printPairs(eulerSieve(24), 24);
-    // int left;
 
-    // // My system is little endian, thus I'm checking for 1
-    // printf("1. TEST LITTLE ENDIAN\n");
-    // assert(isLittleEndian() == 1 && "FAIL");
-    // printf("OK\n");
+    printf("4.2 TEST EULER SIEVE, 120\n");
+    printPrimes(eulerSieve(120), 120);
 
-    // printf("2. TESTS REMOVE DUPS, unique ordered\n");
-    // int expected[] = {1, 2, 3, 4, 5};
-    // int uniquesOrdered[] = {1, 2, 3, 4, 5};
-    // left = removeDups(uniquesOrdered, 5);
-    // assert(memcmp(uniquesOrdered, expected, sizeof(expected)) == 0 && "FAIL");
-    // assert(left == 5 && "FAIL");
-    // printf("OK\n");
-
-    // printf("3. TESTS REMOVE DUPS, unique unordered\n");
-    // int expUniques[] = {4, 5, 3, 1, 2};
-    // int uniques[] = {4, 5, 3, 1, 2};
-    // left = removeDups(uniques, 5);
-    // assert(memcmp(uniques, expUniques, sizeof(expUniques)) == 0 && "FAIL");
-    // assert(left == 5 && "FAIL");
-    // printf("OK\n");
-
-    // printf("4. TESTS REMOVE DUPS, unordered\n");
-    // int expDups[] = {4, 5, 3, 1, 2};
-    // int dups[] = {4, 4, 5, 3, 5, 1, 4, 2};
-    // left = removeDups(dups, 8);
-    // assert(memcmp(dups, expDups, sizeof(expDups)) == 0 && "FAIL");
-    // assert(left == 5 && "FAIL");
-    // printf("OK\n");
-
-    // printf("5. TESTS REMOVE DUPS, all equals\n");
-    // int expEqs[] = {4};
-    // int eqs[] = {4, 4, 4, 4, 4, 4, 4, 4};
-    // left = removeDups(eqs, 8);
-    // assert(memcmp(eqs, expEqs, sizeof(expEqs)) == 0 && "FAIL");
-    // assert(left == 1 && "FAIL");
-    // printf("OK\n");
-
-    // printf("6. TESTS REMOVE DUPS, unordered 2\n");
-    // int expDups2[] = {4, 8, 9, 1, 0};
-    // int dups2[] = {4, 4, 4, 4, 4, 4, 4, 4, 8, 8, 8, 8, 9, 1, 1, 1, 1, 0, 0, 4, 4};
-    // left = removeDups(dups2, 21);
-    // assert(memcmp(dups2, expDups2, sizeof(expDups2)) == 0 && "FAIL");
-    // assert(left == 5 && "FAIL");
-    // printf("OK\n");
-
-    // printf("7. TESTS BINOMIAL, (5 3)\n");
-    // printCBinTree(cbin(5, 3));
-    // printCBinTree(cbinDP(5, 3));
+    printf("4.3 TEST EULER SIEVE, 5000\n");
+    printPrimes(eulerSieve(5000), 5000);
 }
