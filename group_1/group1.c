@@ -100,14 +100,6 @@ void mergeSort(int **arrPtr, int *dups, int *arr, int arrBegin, int arrEnd)
     merge(arrPtr, dups, arr, arrBegin, med, arrEnd);
 }
 
-void printArray(int A[], int size)
-{
-    int i;
-    for (i = 0; i < size; i++)
-        printf("%d ", A[i]);
-    printf("\n");
-}
-
 /**
  * @brief Removes duplicated elements from an array of integers. The elements
  * will preserve their original order and collapsed at the beginning of the
@@ -129,7 +121,6 @@ int removeDups(int *arr, int len)
 
     mergeSort(arrPtr, dups, arr, 0, len - 1);
 
-    int k = 0;
     for (int i = 0; i < len; i++)
     {
         if (dups[i] == 1)
@@ -137,8 +128,11 @@ int removeDups(int *arr, int len)
             removed++;
             continue;
         }
-        arr[k++] = arr[i];
+        arr[i - removed] = arr[i];
     }
+
+    free(arrPtr);
+    free(dups);
 
     return len - removed;
 }
@@ -182,12 +176,10 @@ cBinTree *cbin(int n, int k)
     return result;
 }
 
-cBinTree *_cbinDP(int n, int k, cBinTree *memo[n + 1][k + 1])
+cBinTree *_cbinDP(int n, int k, cBinTree ***memo)
 {
-    if (memo[n][k] != NULL)
-    {
+    if (memo[n][k] != 0)
         return memo[n][k];
-    }
 
     cBinTree *result = (cBinTree *)malloc(sizeof(cBinTree));
     memo[n][k] = result;
@@ -211,13 +203,20 @@ cBinTree *_cbinDP(int n, int k, cBinTree *memo[n + 1][k + 1])
 
 cBinTree *cbinDP(int n, int k)
 {
-    cBinTree *memo[n + 1][k + 1];
+    cBinTree ***memo = (cBinTree ***)malloc((n + 1) * sizeof(cBinTree **));
 
     for (int i = 0; i <= n; i++)
-        for (int j = 0; j <= k; j++)
-            memo[i][j] = NULL;
+    {
+        memo[i] = (cBinTree **)malloc((k + 1) * sizeof(cBinTree *));
+        memset(memo[i], 0, (k + 1) * sizeof(cBinTree *));
+    }
 
-    return _cbinDP(n, k, memo);
+    cBinTree *result = _cbinDP(n, k, memo);
+    for (int i = 0; i <= n; i++)
+        free(memo[i]);
+    free(memo);
+
+    return result;
 }
 
 // 4. EULER SIEVE --------------------------------------------------------------
@@ -291,6 +290,14 @@ pair *eulerSieve(int n)
 }
 
 // TESTS -----------------------------------------------------------------------
+
+void printArray(int A[], int size)
+{
+    int i;
+    for (i = 0; i < size; i++)
+        printf("%d ", A[i]);
+    printf("\n");
+}
 
 void _printCBinTree(cBinTree *root, int level)
 {
