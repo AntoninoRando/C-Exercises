@@ -47,11 +47,13 @@ element preserves its original order. */
  * way, we can easily remove duplicates from the original list while preserving
  * elements original order.
  * @param arrPtr The list of pointers to the original list elements.
+ * @param dups An array of flags to mark duplicated elements.
+ * @param arr The original array, used to retrieve duplicated elements indexes.
  * @param l starting index of the left subarray to merge.
  * @param m last index of the left subarray to merge.
  * @param r last index of the right subarray to merge.
  */
-void merge(int **arrPtr, int l, int m, int r)
+void merge(int **arrPtr, int *dups, int *arr, int l, int m, int r)
 {
     int n1 = m - l + 1;
     int n2 = r - m;
@@ -71,8 +73,8 @@ void merge(int **arrPtr, int l, int m, int r)
             arrPtr[k++] = R[j++];
         else
         {
-            *R[j] = -1; // We set to `NULL` the rightmost element to preserver
-                        // original order.
+            int elementIndex = R[j] - arr;
+            dups[elementIndex] = 1;
             arrPtr[k++] = L[i++];
         }
     }
@@ -86,42 +88,57 @@ void merge(int **arrPtr, int l, int m, int r)
     free(R);
 }
 
-void mergeSort(int **arrPtr, int arrBegin, int arrEnd)
+void mergeSort(int **arrPtr, int *dups, int *arr, int arrBegin, int arrEnd)
 {
     if (arrBegin >= arrEnd)
         return;
 
     // Same as (l+r)/2, but avoids overflow for large l and r
     int med = arrBegin + (arrEnd - arrBegin) / 2;
-    mergeSort(arrPtr, med + 1, arrEnd);
-    mergeSort(arrPtr, arrBegin, med);
-    merge(arrPtr, arrBegin, med, arrEnd);
+    mergeSort(arrPtr, dups, arr, med + 1, arrEnd);
+    mergeSort(arrPtr, dups, arr, arrBegin, med);
+    merge(arrPtr, dups, arr, arrBegin, med, arrEnd);
 }
 
+void printArray(int A[], int size)
+{
+    int i;
+    for (i = 0; i < size; i++)
+        printf("%d ", A[i]);
+    printf("\n");
+}
+
+/**
+ * @brief Removes duplicated elements from an array of integers. The elements
+ * will preserve their original order and collapsed at the beginning of the
+ * array.
+ *
+ * @param arr The array from which to remove duplicates.
+ * @param len The length of the array.
+ * @return int The new length of the array.
+ */
 int removeDups(int *arr, int len)
 {
     int **arrPtr = (int **)malloc(len * sizeof(int *));
+    int *dups = (int *)malloc(len * sizeof(int));
     int removed = 0;
 
+    memset(dups, 0, len * sizeof(int));
     for (int i = 0; i < len; i++)
         arrPtr[i] = &arr[i];
 
-    mergeSort(arrPtr, 0, len - 1);
-
-    int *arrClone = (int *)malloc(len * sizeof(int));
+    mergeSort(arrPtr, dups, arr, 0, len - 1);
 
     int k = 0;
     for (int i = 0; i < len; i++)
     {
-        if (arr[i] == -1)
+        if (dups[i] == 1)
         {
             removed++;
             continue;
         }
-        arrClone[k++] = arr[i];
+        arr[k++] = arr[i];
     }
-
-    memcpy(arr, arrClone, (len - removed) * sizeof(int));
 
     return len - removed;
 }
@@ -275,14 +292,6 @@ pair *eulerSieve(int n)
 
 // TESTS -----------------------------------------------------------------------
 
-void printArray(int A[], int size)
-{
-    int i;
-    for (i = 0; i < size; i++)
-        printf("%d ", A[i]);
-    printf("\n");
-}
-
 void _printCBinTree(cBinTree *root, int level)
 {
     if (root == NULL)
@@ -372,6 +381,14 @@ int main(int arc, char **argv)
     left = removeDups(dups2, 21);
     assert(memcmp(dups2, expDups2, sizeof(expDups2)) == 0 && "FAIL");
     assert(left == 5 && "FAIL");
+    printf("OK\n");
+
+    printf("2.6 TEST REMOVE DUPS, unordered 3\n");
+    int expDups3[] = {0, -1, 2, 78, 1, 4, 8, 9};
+    int dups3[] = {0, -1, 2, 78, 1, -1, 0, 2, 4, 8, 9, -1, 2, 0};
+    left = removeDups(dups3, 14);
+    assert(memcmp(dups3, expDups3, sizeof(expDups3)) == 0 && "FAIL");
+    assert(left == 8 && "FAIL");
     printf("OK\n");
 
     printf("3.1 TEST BINOMIAL, (5 3)\n");
